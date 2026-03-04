@@ -7,7 +7,7 @@
       </div>
       <el-form-item v-if="tenantEnabled" prop="tenantId">
         <el-select v-model="loginForm.tenantId" filterable :placeholder="proxy.$t('login.selectPlaceholder')" style="width: 100%">
-          <el-option v-for="item in tenantList" :key="item.tenantId" :label="item.companyName" :value="item.tenantId"></el-option>
+          <el-option v-for="item in tenantList" :key="item.tenantId" :label="item.tenantId" :value="item.tenantId"></el-option>
           <template #prefix><svg-icon icon-class="company" class="el-input__icon input-icon" /></template>
         </el-select>
       </el-form-item>
@@ -44,7 +44,7 @@
         </div>
       </el-form-item>
       <el-checkbox v-model="loginForm.rememberMe" style="margin: 0 0 25px 0">{{ proxy.$t('login.rememberPassword') }}</el-checkbox>
-      <el-form-item style="float: right">
+      <!-- <el-form-item style="float: right">
         <el-button circle :title="proxy.$t('login.social.wechat')" @click="doSocialLogin('wechat')">
           <svg-icon icon-class="wechat" />
         </el-button>
@@ -60,7 +60,7 @@
         <el-button circle :title="proxy.$t('login.social.github')" @click="doSocialLogin('github')">
           <svg-icon icon-class="github" />
         </el-button>
-      </el-form-item>
+      </el-form-item> -->
       <el-form-item style="width: 100%">
         <el-button :loading="loading" size="large" type="primary" style="width: 100%" @click.prevent="handleLogin">
           <span v-if="!loading">{{ proxy.$t('login.login') }}</span>
@@ -73,7 +73,7 @@
     </el-form>
     <!--  底部  -->
     <div class="el-login-footer">
-      <span>Copyright © 2018-2026 疯狂的狮子Li All Rights Reserved.</span>
+      <span>Copyright © 河北裕保网络科技有限责任公司 All Rights Reserved.</span>
     </div>
   </div>
 </template>
