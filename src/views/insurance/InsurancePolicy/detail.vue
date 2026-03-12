@@ -41,11 +41,12 @@
           </el-descriptions>
 
           <el-descriptions title="被保人信息" :column="3" border class="mb-5">
+            <el-descriptions-item label="姓名">{{ form.insuredName }}</el-descriptions-item>
             <el-descriptions-item label="性别">
               <dict-tag :options="insurance_sex" :value="form.insuredSex" />
             </el-descriptions-item>
             <el-descriptions-item label="手机号">{{ form.insuredMobile }}</el-descriptions-item>
-            <el-descriptions-item label="关系">
+            <el-descriptions-item label="与投保人关系">
               <dict-tag :options="insurance_relationship_to_insured" :value="form.relationshipToInsured" />
             </el-descriptions-item>
             <el-descriptions-item label="证件类型">

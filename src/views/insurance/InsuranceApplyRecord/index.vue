@@ -22,9 +22,6 @@
             <el-form-item label="客户手机号" prop="customerMobile">
               <el-input v-model="queryParams.customerMobile" placeholder="请输入客户手机号" clearable @keyup.enter="handleQuery" />
             </el-form-item>
-            <el-form-item label="登记保费" prop="premium">
-              <el-input v-model="queryParams.premium" placeholder="请输入登记保费" clearable @keyup.enter="handleQuery" />
-            </el-form-item>
             <el-form-item label="订单状态" prop="status">
               <el-select v-model="queryParams.status" placeholder="请选择订单状态" clearable >
                 <el-option v-for="dict in insurance_apply_status" :key="dict.value" :label="dict.label" :value="dict.value"/>
@@ -34,14 +31,6 @@
               <el-select v-model="queryParams.commissionStatus" placeholder="请选择结算状态" clearable >
                 <el-option v-for="dict in insurance_commission_status" :key="dict.value" :label="dict.label" :value="dict.value"/>
               </el-select>
-            </el-form-item>
-            <el-form-item label="创建时间" prop="createTime">
-              <el-date-picker clearable
-                v-model="queryParams.createTime"
-                type="date"
-                value-format="YYYY-MM-DD"
-                placeholder="请选择创建时间"
-              />
             </el-form-item>
             <el-form-item>
               <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
@@ -75,9 +64,12 @@
         <el-table-column type="selection" width="55" align="center" />
         <el-table-column label="id" align="center" prop="id" v-if="true" />
         <el-table-column label="订单号" align="center" prop="orderNo" />
+        <el-table-column label="产品ID" align="center" prop="productId" />
         <el-table-column label="产品编码" align="center" prop="productCode" />
         <el-table-column label="产品名称" align="center" prop="productName" />
         <el-table-column label="业务员姓名" align="center" prop="agentName" />
+        <el-table-column label="业务员ID" align="center" prop="agentUserId" />
+        <el-table-column label="所属机构ID" align="center" prop="agentDeptId" />
         <el-table-column label="客户姓名" align="center" prop="customerName" />
         <el-table-column label="客户手机号" align="center" prop="customerMobile" />
         <el-table-column label="登记保费" align="center" prop="premium" />
@@ -96,6 +88,8 @@
             <span>{{ parseTime(scope.row.createTime, '{y}-{m}-{d}') }}</span>
           </template>
         </el-table-column>
+        <el-table-column label="删除标识" align="center" prop="delFlag" />
+        <el-table-column label="乐观锁版本" align="center" prop="version" />
         <el-table-column label="操作" align="center" fixed="right"  class-name="small-padding fixed-width">
           <template #default="scope">
             <el-tooltip content="修改" placement="top">
@@ -163,6 +157,12 @@
             ></el-option>
           </el-select>
         </el-form-item>
+        <el-form-item label="删除标识" prop="delFlag">
+          <el-input v-model="form.delFlag" placeholder="请输入删除标识" />
+        </el-form-item>
+        <el-form-item label="乐观锁版本" prop="version">
+          <el-input v-model="form.version" placeholder="请输入乐观锁版本" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
@@ -212,6 +212,8 @@ const initFormData: InsuranceApplyRecordForm = {
   premium: undefined,
   status: undefined,
   commissionStatus: undefined,
+  delFlag: undefined,
+  version: undefined
 }
 const data = reactive<PageData<InsuranceApplyRecordForm, InsuranceApplyRecordQuery>>({
   form: {...initFormData},
@@ -224,10 +226,8 @@ const data = reactive<PageData<InsuranceApplyRecordForm, InsuranceApplyRecordQue
     agentName: undefined,
     customerName: undefined,
     customerMobile: undefined,
-    premium: undefined,
     status: undefined,
     commissionStatus: undefined,
-    createTime: undefined,
     params: {
     }
   },

@@ -335,7 +335,8 @@ const handleStatusChange = async (row: RoleVO) => {
 
 /** 分配用户 */
 const handleAuthUser = (row: RoleVO) => {
-  router.push('/system/role-auth/user/' + row.roleId);
+  // router.push('/system/role-auth/user/' + row.roleId);
+  router.push('/personnel/role-auth/user/' + row.roleId);
 };
 
 /** 查询菜单树结构 */

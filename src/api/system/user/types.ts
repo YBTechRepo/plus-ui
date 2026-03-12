@@ -48,6 +48,9 @@ export interface UserVO extends BaseEntity {
   postIds: any;
   roleId: any;
   admin: boolean;
+  idNo?: string;
+  referrerName?: string;
+  referrerId?: number | string;
 }
 
 /**
@@ -67,6 +70,9 @@ export interface UserForm {
   remark?: string;
   postIds: string[];
   roleIds: string[];
+  idNo?: string;
+  referrerName?: string;
+  referrerId?: number | string;
 }
 
 export interface UserInfoVO {

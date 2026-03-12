@@ -35,6 +35,16 @@ export interface InsurancePolicyVO {
   agentName: string;
 
   /**
+   * 业务人员id
+   */
+  agentUserId: string | number;
+
+  /**
+   * 业务人员所属部门
+   */
+  agentDeptId: string | number;
+
+  /**
    * 保费
    */
   premium: number;
@@ -82,52 +92,68 @@ export interface InsurancePolicyVO {
   /**
    * 投保人姓名
    */
-  applicantName?: string;
+  applicantName: string;
 
   /**
    * 投保人性别
    */
-  applicantSex?: string;
+  applicantSex: string;
 
   /**
    * 投保人证件号
    */
-  applicantIdNo?: string | number;
+  applicantIdNo: string | number;
 
   /**
    * 投保人证件类型
    */
-  applicantIdType?: string | number;
+  applicantIdType: string | number;
 
   /**
    * 投保人手机号
    */
-  applicantMobile?: string;
+  applicantMobile: string;
 
   /**
    * 被保人与投保人关系
    */
-  relationshipToInsured?: string;
+  relationshipToInsured: string;
+
+  /**
+   * 被保人姓名
+   */
+  insuredName: string;
 
   /**
    * 被保人性别
    */
-  insuredSex?: string;
+  insuredSex: string;
 
   /**
    * 被保人证件号
    */
-  insuredIdNo?: string | number;
+  insuredIdNo: string | number;
 
   /**
    * 被保人证件类型
    */
-  insuredIdType?: string | number;
+  insuredIdType: string | number;
 
   /**
    * 被保人手机号
    */
-  insuredMobile?: string;
+  insuredMobile: string;
+
+  /**
+   * 删除标识
+   */
+  delFlag: string;
+
+  /**
+   * 乐观锁版本
+   */
+  version: number;
+
 }
 
 export interface InsurancePolicyForm extends BaseEntity {
@@ -252,6 +278,11 @@ export interface InsurancePolicyForm extends BaseEntity {
   relationshipToInsured?: string;
 
   /**
+   * 被保人姓名
+   */
+  insuredName?: string;
+
+  /**
    * 被保人性别
    */
   insuredSex?: string;
@@ -271,14 +302,19 @@ export interface InsurancePolicyForm extends BaseEntity {
    */
   insuredMobile?: string;
 
+  /**
+   * 删除标识
+   */
+  delFlag?: string;
+
+  /**
+   * 乐观锁版本
+   */
+  version?: number;
+
 }
 
 export interface InsurancePolicyQuery extends PageQuery {
-
-  /**
-   * 产品id
-   */
-  productId?: string | number;
 
   /**
    * 产品编码
@@ -306,6 +342,16 @@ export interface InsurancePolicyQuery extends PageQuery {
   agentName?: string;
 
   /**
+   * 保费
+   */
+  premium?: number;
+
+  /**
+   * 保额
+   */
+  amt?: number;
+
+  /**
    * 结算状态
    */
   commissionStatus?: number;
@@ -321,24 +367,9 @@ export interface InsurancePolicyQuery extends PageQuery {
   appntDate?: string;
 
   /**
-   * 承保时间
+   * 投保人姓名
    */
-  accecptDate?: string;
-
-  /**
-   * 保单失效时间
-   */
-  policyInvalidDate?: string | number;
-
-  /**
-   * 保障开始时间
-   */
-  policyStartDate?: string;
-
-  /**
-   * 保障结束时间
-   */
-  policyEndDate?: string;
+  applicantName?: string;
 
   /**
    * 日期范围参数

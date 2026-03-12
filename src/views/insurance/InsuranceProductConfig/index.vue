@@ -10,8 +10,8 @@
             <el-form-item label="产品名称" prop="productName">
               <el-input v-model="queryParams.productName" placeholder="请输入产品名称" clearable @keyup.enter="handleQuery" />
             </el-form-item>
-            <el-form-item label="保险公司编码" prop="companyCode">
-              <el-select v-model="queryParams.companyCode" placeholder="请选择保险公司编码" clearable >
+            <el-form-item label="保险公司" prop="companyCode">
+              <el-select v-model="queryParams.companyCode" placeholder="请选择保险公司" clearable >
                 <el-option v-for="dict in insurance_company" :key="dict.value" :label="dict.label" :value="dict.value"/>
               </el-select>
             </el-form-item>
@@ -24,6 +24,9 @@
               <el-select v-model="queryParams.productMode" placeholder="请选择产品模式" clearable >
                 <el-option v-for="dict in insurance_product_mode" :key="dict.value" :label="dict.label" :value="dict.value"/>
               </el-select>
+            </el-form-item>
+            <el-form-item label="最低保费" prop="minPremium">
+              <el-input v-model="queryParams.minPremium" placeholder="请输入最低保费" clearable @keyup.enter="handleQuery" />
             </el-form-item>
             <el-form-item label="产品状态" prop="status">
               <el-select v-model="queryParams.status" placeholder="请选择产品状态" clearable >
@@ -46,27 +49,27 @@
       <template #header>
         <el-row :gutter="10" class="mb8">
           <el-col :span="1.5">
-            <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['insurance:InsuranceProduct:add']">新增</el-button>
+            <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['insurance:InsuranceProductConfig:add']">新增</el-button>
           </el-col>
           <el-col :span="1.5">
-            <el-button type="success" plain icon="Edit" :disabled="single" @click="handleUpdate()" v-hasPermi="['insurance:InsuranceProduct:edit']">修改</el-button>
+            <el-button type="success" plain icon="Edit" :disabled="single" @click="handleUpdate()" v-hasPermi="['insurance:InsuranceProductConfig:edit']">修改</el-button>
           </el-col>
           <el-col :span="1.5">
-            <el-button type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete()" v-hasPermi="['insurance:InsuranceProduct:remove']">删除</el-button>
+            <el-button type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete()" v-hasPermi="['insurance:InsuranceProductConfig:remove']">删除</el-button>
           </el-col>
           <el-col :span="1.5">
-            <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['insurance:InsuranceProduct:export']">导出</el-button>
+            <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['insurance:InsuranceProductConfig:export']">导出</el-button>
           </el-col>
           <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
         </el-row>
       </template>
 
-      <el-table v-loading="loading" border :data="InsuranceProductList" @selection-change="handleSelectionChange">
+      <el-table v-loading="loading" border :data="InsuranceProductConfigList" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center" />
         <el-table-column label="id" align="center" prop="id" v-if="true" />
         <el-table-column label="产品编码" align="center" prop="productCode" />
         <el-table-column label="产品名称" align="center" prop="productName" />
-        <el-table-column label="保险公司编码" align="center" prop="companyCode">
+        <el-table-column label="保险公司" align="center" prop="companyCode">
           <template #default="scope">
             <dict-tag :options="insurance_company" :value="scope.row.companyCode"/>
           </template>
@@ -100,18 +103,15 @@
             <span>{{ parseTime(scope.row.createTime, '{y}-{m}-{d}') }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="更新时间" align="center" prop="updateTime" width="180">
-          <template #default="scope">
-            <span>{{ parseTime(scope.row.updateTime, '{y}-{m}-{d}') }}</span>
-          </template>
-        </el-table-column>
+        <!-- <el-table-column label="删除标识" align="center" prop="delFlag" /> -->
+        <!-- <el-table-column label="乐观锁版本" align="center" prop="version" /> -->
         <el-table-column label="操作" align="center" fixed="right"  class-name="small-padding fixed-width">
           <template #default="scope">
             <el-tooltip content="修改" placement="top">
-              <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['insurance:InsuranceProduct:edit']"></el-button>
+              <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['insurance:InsuranceProductConfig:edit']"></el-button>
             </el-tooltip>
             <el-tooltip content="删除" placement="top">
-              <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['insurance:InsuranceProduct:remove']"></el-button>
+              <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['insurance:InsuranceProductConfig:remove']"></el-button>
             </el-tooltip>
           </template>
         </el-table-column>
@@ -121,15 +121,15 @@
     </el-card>
     <!-- 添加或修改产品配置对话框 -->
     <el-dialog :title="dialog.title" v-model="dialog.visible" width="500px" append-to-body>
-      <el-form ref="InsuranceProductFormRef" :model="form" :rules="rules" label-width="80px">
+      <el-form ref="InsuranceProductConfigFormRef" :model="form" :rules="rules" label-width="80px">
         <el-form-item label="产品编码" prop="productCode">
           <el-input v-model="form.productCode" placeholder="请输入产品编码" />
         </el-form-item>
         <el-form-item label="产品名称" prop="productName">
           <el-input v-model="form.productName" placeholder="请输入产品名称" />
         </el-form-item>
-        <el-form-item label="保险公司编码" prop="companyCode">
-          <el-select v-model="form.companyCode" placeholder="请选择保险公司编码">
+        <el-form-item label="保险公司" prop="companyCode">
+          <el-select v-model="form.companyCode" placeholder="请选择保险公司">
             <el-option
                 v-for="dict in insurance_company"
                 :key="dict.value"
@@ -183,6 +183,12 @@
         <el-form-item label="产品排序" prop="sort">
           <el-input v-model="form.sort" placeholder="请输入产品排序" />
         </el-form-item>
+        <el-form-item label="删除标识" prop="delFlag">
+          <el-input v-model="form.delFlag" placeholder="请输入删除标识" />
+        </el-form-item>
+        <el-form-item label="乐观锁版本" prop="version">
+          <el-input v-model="form.version" placeholder="请输入乐观锁版本" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
@@ -194,14 +200,14 @@
   </div>
 </template>
 
-<script setup name="InsuranceProduct" lang="ts">
-import { listInsuranceProduct, getInsuranceProduct, delInsuranceProduct, addInsuranceProduct, updateInsuranceProduct } from '@/api/insurance/InsuranceProduct';
-import { InsuranceProductVO, InsuranceProductQuery, InsuranceProductForm } from '@/api/insurance/InsuranceProduct/types';
+<script setup name="InsuranceProductConfig" lang="ts">
+import { listInsuranceProductConfig, getInsuranceProductConfig, delInsuranceProductConfig, addInsuranceProductConfig, updateInsuranceProductConfig } from '@/api/insurance/InsuranceProductConfig';
+import { InsuranceProductConfigVO, InsuranceProductConfigQuery, InsuranceProductConfigForm } from '@/api/insurance/InsuranceProductConfig/types';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const { insurance_product_type, insurance_product_mode, insurance_company, insurance_product_status } = toRefs<any>(proxy?.useDict('insurance_product_type', 'insurance_product_mode', 'insurance_company', 'insurance_product_status'));
 
-const InsuranceProductList = ref<InsuranceProductVO[]>([]);
+const InsuranceProductConfigList = ref<InsuranceProductConfigVO[]>([]);
 const buttonLoading = ref(false);
 const loading = ref(true);
 const showSearch = ref(true);
@@ -211,14 +217,14 @@ const multiple = ref(true);
 const total = ref(0);
 
 const queryFormRef = ref<ElFormInstance>();
-const InsuranceProductFormRef = ref<ElFormInstance>();
+const InsuranceProductConfigFormRef = ref<ElFormInstance>();
 
 const dialog = reactive<DialogOption>({
   visible: false,
   title: ''
 });
 
-const initFormData: InsuranceProductForm = {
+const initFormData: InsuranceProductConfigForm = {
   id: undefined,
   productCode: undefined,
   productName: undefined,
@@ -231,8 +237,10 @@ const initFormData: InsuranceProductForm = {
   description: undefined,
   status: undefined,
   sort: undefined,
+  delFlag: undefined,
+  version: undefined
 }
-const data = reactive<PageData<InsuranceProductForm, InsuranceProductQuery>>({
+const data = reactive<PageData<InsuranceProductConfigForm, InsuranceProductConfigQuery>>({
   form: {...initFormData},
   queryParams: {
     pageNum: 1,
@@ -242,6 +250,8 @@ const data = reactive<PageData<InsuranceProductForm, InsuranceProductQuery>>({
     companyCode: undefined,
     productType: undefined,
     productMode: undefined,
+    minPremium: undefined,
+    imgUrl: undefined,
     status: undefined,
     sort: undefined,
     params: {
@@ -258,7 +268,7 @@ const data = reactive<PageData<InsuranceProductForm, InsuranceProductQuery>>({
       { required: true, message: "产品名称不能为空", trigger: "blur" }
     ],
     companyCode: [
-      { required: true, message: "保险公司编码不能为空", trigger: "change" }
+      { required: true, message: "保险公司不能为空", trigger: "change" }
     ],
     productType: [
       { required: true, message: "产品类型不能为空", trigger: "change" }
@@ -289,8 +299,8 @@ const { queryParams, form, rules } = toRefs(data);
 /** 查询产品配置列表 */
 const getList = async () => {
   loading.value = true;
-  const res = await listInsuranceProduct(queryParams.value);
-  InsuranceProductList.value = res.rows;
+  const res = await listInsuranceProductConfig(queryParams.value);
+  InsuranceProductConfigList.value = res.rows;
   total.value = res.total;
   loading.value = false;
 }
@@ -304,7 +314,7 @@ const cancel = () => {
 /** 表单重置 */
 const reset = () => {
   form.value = {...initFormData};
-  InsuranceProductFormRef.value?.resetFields();
+  InsuranceProductConfigFormRef.value?.resetFields();
 }
 
 /** 搜索按钮操作 */
@@ -320,7 +330,7 @@ const resetQuery = () => {
 }
 
 /** 多选框选中数据 */
-const handleSelectionChange = (selection: InsuranceProductVO[]) => {
+const handleSelectionChange = (selection: InsuranceProductConfigVO[]) => {
   ids.value = selection.map(item => item.id);
   single.value = selection.length != 1;
   multiple.value = !selection.length;
@@ -334,10 +344,10 @@ const handleAdd = () => {
 }
 
 /** 修改按钮操作 */
-const handleUpdate = async (row?: InsuranceProductVO) => {
+const handleUpdate = async (row?: InsuranceProductConfigVO) => {
   reset();
   const _id = row?.id || ids.value[0]
-  const res = await getInsuranceProduct(_id);
+  const res = await getInsuranceProductConfig(_id);
   Object.assign(form.value, res.data);
   dialog.visible = true;
   dialog.title = "修改产品配置";
@@ -345,13 +355,13 @@ const handleUpdate = async (row?: InsuranceProductVO) => {
 
 /** 提交按钮 */
 const submitForm = () => {
-  InsuranceProductFormRef.value?.validate(async (valid: boolean) => {
+  InsuranceProductConfigFormRef.value?.validate(async (valid: boolean) => {
     if (valid) {
       buttonLoading.value = true;
       if (form.value.id) {
-        await updateInsuranceProduct(form.value).finally(() =>  buttonLoading.value = false);
+        await updateInsuranceProductConfig(form.value).finally(() =>  buttonLoading.value = false);
       } else {
-        await addInsuranceProduct(form.value).finally(() =>  buttonLoading.value = false);
+        await addInsuranceProductConfig(form.value).finally(() =>  buttonLoading.value = false);
       }
       proxy?.$modal.msgSuccess("操作成功");
       dialog.visible = false;
@@ -361,19 +371,19 @@ const submitForm = () => {
 }
 
 /** 删除按钮操作 */
-const handleDelete = async (row?: InsuranceProductVO) => {
+const handleDelete = async (row?: InsuranceProductConfigVO) => {
   const _ids = row?.id || ids.value;
   await proxy?.$modal.confirm('是否确认删除产品配置编号为"' + _ids + '"的数据项？').finally(() => loading.value = false);
-  await delInsuranceProduct(_ids);
+  await delInsuranceProductConfig(_ids);
   proxy?.$modal.msgSuccess("删除成功");
   await getList();
 }
 
 /** 导出按钮操作 */
 const handleExport = () => {
-  proxy?.download('insurance/InsuranceProduct/export', {
+  proxy?.download('insurance/InsuranceProductConfig/export', {
     ...queryParams.value
-  }, `InsuranceProduct_${new Date().getTime()}.xlsx`)
+  }, `InsuranceProductConfig_${new Date().getTime()}.xlsx`)
 }
 
 onMounted(() => {

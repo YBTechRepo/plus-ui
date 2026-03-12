@@ -4,9 +4,6 @@
       <div v-show="showSearch" class="mb-[10px]">
         <el-card shadow="hover">
           <el-form ref="queryFormRef" :model="queryParams" :inline="true">
-            <!-- <el-form-item label="产品id" prop="productId">
-              <el-input v-model="queryParams.productId" placeholder="请输入产品id" clearable @keyup.enter="handleQuery" />
-            </el-form-item> -->
             <el-form-item label="产品编码" prop="productCode">
               <el-input v-model="queryParams.productCode" placeholder="请输入产品编码" clearable @keyup.enter="handleQuery" />
             </el-form-item>
@@ -21,6 +18,12 @@
             </el-form-item>
             <el-form-item label="业务人员姓名" prop="agentName">
               <el-input v-model="queryParams.agentName" placeholder="请输入业务人员姓名" clearable @keyup.enter="handleQuery" />
+            </el-form-item>
+            <el-form-item label="保费" prop="premium">
+              <el-input v-model="queryParams.premium" placeholder="请输入保费" clearable @keyup.enter="handleQuery" />
+            </el-form-item>
+            <el-form-item label="保额" prop="amt">
+              <el-input v-model="queryParams.amt" placeholder="请输入保额" clearable @keyup.enter="handleQuery" />
             </el-form-item>
             <el-form-item label="结算状态" prop="commissionStatus">
               <el-select v-model="queryParams.commissionStatus" placeholder="请选择结算状态" clearable >
@@ -40,38 +43,9 @@
                 placeholder="请选择投保时间"
               />
             </el-form-item>
-            <!-- <el-form-item label="承保时间" prop="accecptDate">
-              <el-date-picker clearable
-                v-model="queryParams.accecptDate"
-                type="date"
-                value-format="YYYY-MM-DD"
-                placeholder="请选择承保时间"
-              />
+            <el-form-item label="投保人姓名" prop="applicantName">
+              <el-input v-model="queryParams.applicantName" placeholder="请输入投保人姓名" clearable @keyup.enter="handleQuery" />
             </el-form-item>
-            <el-form-item label="保单失效时间" prop="policyInvalidDate">
-              <el-date-picker clearable
-                v-model="queryParams.policyInvalidDate"
-                type="date"
-                value-format="YYYY-MM-DD"
-                placeholder="请选择保单失效时间"
-              />
-            </el-form-item>
-            <el-form-item label="保障开始时间" prop="policyStartDate">
-              <el-date-picker clearable
-                v-model="queryParams.policyStartDate"
-                type="date"
-                value-format="YYYY-MM-DD"
-                placeholder="请选择保障开始时间"
-              />
-            </el-form-item>
-            <el-form-item label="保障结束时间" prop="policyEndDate">
-              <el-date-picker clearable
-                v-model="queryParams.policyEndDate"
-                type="date"
-                value-format="YYYY-MM-DD"
-                placeholder="请选择保障结束时间"
-              />
-            </el-form-item> -->
             <el-form-item>
               <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
               <el-button icon="Refresh" @click="resetQuery">重置</el-button>
@@ -102,13 +76,10 @@
 
       <el-table v-loading="loading" border :data="InsurancePolicyList" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column label="id" align="center" prop="id" v-if="true" />
-        <!-- <el-table-column label="产品id" align="center" prop="productId" /> -->
-        <el-table-column label="产品编码" align="center" prop="productCode" />
-        <el-table-column label="产品名称" align="center" prop="productName" />
-        <!-- <el-table-column label="保单号" align="center" prop="policyNo" /> -->
+        <!-- <el-table-column label="id" align="center" prop="id" v-if="true" />
+        <el-table-column label="产品id" align="center" prop="productId" /> -->
 
-        <el-table-column label="保单号" align="center" prop="policyNo">
+        <el-table-column label="保单号" align="center" prop="policyNo" width="180">
           <template #default="scope">
             <el-link type="primary" @click="handleView(scope.row)">
               {{ scope.row.policyNo }}
@@ -116,20 +87,25 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="订单号" align="center" prop="orderNo" />
+        <el-table-column label="订单号" align="center" prop="orderNo" width="180" />
+
+        <el-table-column label="产品编码" align="center" prop="productCode" />
+        <el-table-column label="产品名称" align="center" prop="productName" />
+        <!-- <el-table-column label="保单号" align="center" prop="policyNo" /> -->
+        
+
         <el-table-column label="业务人员姓名" align="center" prop="agentName" />
+        <!-- <el-table-column label="业务人员id" align="center" prop="agentUserId" /> -->
+        <!-- <el-table-column label="业务人员所属部门" align="center" prop="agentDeptId" /> -->
         <el-table-column label="保费" align="center" prop="premium" />
         <el-table-column label="保额" align="center" prop="amt" />
-        <el-table-column label="结算状态" align="center" prop="commissionStatus">
-          <template #default="scope">
-            <dict-tag :options="insurance_commission_status" :value="scope.row.commissionStatus"/>
-          </template>
-        </el-table-column>
+        
         <el-table-column label="保单状态" align="center" prop="status">
           <template #default="scope">
             <dict-tag :options="insurance_policy_status" :value="scope.row.status"/>
           </template>
         </el-table-column>
+        <el-table-column label="投保人姓名" align="center" prop="applicantName" />
         <el-table-column label="投保时间" align="center" prop="appntDate" width="180">
           <template #default="scope">
             <span>{{ parseTime(scope.row.appntDate, '{y}-{m}-{d}') }}</span>
@@ -155,6 +131,45 @@
             <span>{{ parseTime(scope.row.policyEndDate, '{y}-{m}-{d}') }}</span>
           </template>
         </el-table-column>
+
+        <el-table-column label="结算状态" align="center" prop="commissionStatus">
+          <template #default="scope">
+            <dict-tag :options="insurance_commission_status" :value="scope.row.commissionStatus"/>
+          </template>
+        </el-table-column>
+        
+        <!-- <el-table-column label="投保人性别" align="center" prop="applicantSex">
+          <template #default="scope">
+            <dict-tag :options="insurance_sex" :value="scope.row.applicantSex"/>
+          </template>
+        </el-table-column>
+        <el-table-column label="投保人证件号" align="center" prop="applicantIdNo" />
+        <el-table-column label="投保人证件类型" align="center" prop="applicantIdType">
+          <template #default="scope">
+            <dict-tag :options="insurance_id_type" :value="scope.row.applicantIdType"/>
+          </template>
+        </el-table-column>
+        <el-table-column label="投保人手机号" align="center" prop="applicantMobile" />
+        <el-table-column label="被保人与投保人关系" align="center" prop="relationshipToInsured">
+          <template #default="scope">
+            <dict-tag :options="insurance_relationship_to_insured" :value="scope.row.relationshipToInsured"/>
+          </template>
+        </el-table-column>
+        <el-table-column label="被保人姓名" align="center" prop="insuredName" />
+        <el-table-column label="被保人性别" align="center" prop="insuredSex">
+          <template #default="scope">
+            <dict-tag :options="insurance_sex" :value="scope.row.insuredSex"/>
+          </template>
+        </el-table-column>
+        <el-table-column label="被保人证件号" align="center" prop="insuredIdNo" />
+        <el-table-column label="被保人证件类型" align="center" prop="insuredIdType">
+          <template #default="scope">
+            <dict-tag :options="insurance_id_type" :value="scope.row.insuredIdType"/>
+          </template>
+        </el-table-column>
+        <el-table-column label="被保人手机号" align="center" prop="insuredMobile" />
+        <el-table-column label="删除标识" align="center" prop="delFlag" />
+        <el-table-column label="乐观锁版本" align="center" prop="version" /> -->
         <el-table-column label="操作" align="center" fixed="right"  class-name="small-padding fixed-width">
           <template #default="scope">
             <el-tooltip content="查看详情" placement="top">
@@ -304,6 +319,9 @@
             ></el-option>
           </el-select>
         </el-form-item>
+        <el-form-item label="被保人姓名" prop="insuredName">
+          <el-input v-model="form.insuredName" placeholder="请输入被保人姓名" />
+        </el-form-item>
         <el-form-item label="被保人性别" prop="insuredSex">
           <el-select v-model="form.insuredSex" placeholder="请选择被保人性别">
             <el-option
@@ -330,6 +348,12 @@
         <el-form-item label="被保人手机号" prop="insuredMobile">
           <el-input v-model="form.insuredMobile" placeholder="请输入被保人手机号" />
         </el-form-item>
+        <el-form-item label="删除标识" prop="delFlag">
+          <el-input v-model="form.delFlag" placeholder="请输入删除标识" />
+        </el-form-item>
+        <el-form-item label="乐观锁版本" prop="version">
+          <el-input v-model="form.version" placeholder="请输入乐观锁版本" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
@@ -346,6 +370,18 @@ import { listInsurancePolicy, getInsurancePolicy, delInsurancePolicy, addInsuran
 import { InsurancePolicyVO, InsurancePolicyQuery, InsurancePolicyForm } from '@/api/insurance/InsurancePolicy/types';
 import { useRouter } from 'vue-router';
 
+const router = useRouter();
+
+/** 查看按钮操作 */
+async function handleView(row: InsurancePolicyVO) {
+  const res = await getInsurancePolicy(row.id);
+  router.push({
+    path: '/insurancePolicy/detail',
+    query: { id: row.id },
+    state: { policyData: res.data as any }
+  });
+}
+
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const { insurance_policy_status, insurance_id_type, insurance_relationship_to_insured, insurance_sex, insurance_commission_status } = toRefs<any>(proxy?.useDict('insurance_policy_status', 'insurance_id_type', 'insurance_relationship_to_insured', 'insurance_sex', 'insurance_commission_status'));
 
@@ -360,18 +396,6 @@ const total = ref(0);
 
 const queryFormRef = ref<ElFormInstance>();
 const InsurancePolicyFormRef = ref<ElFormInstance>();
-
-const router = useRouter();
-
-/** 查看按钮操作 */
-async function handleView(row: InsurancePolicyVO) {
-  const res = await getInsurancePolicy(row.id);
-  router.push({
-    path: '/insurance/InsurancePolicy/detail',
-    query: { id: row.id },
-    state: { policyData: res.data as any }
-  });
-}
 
 const dialog = reactive<DialogOption>({
   visible: false,
@@ -403,41 +427,36 @@ const initFormData: InsurancePolicyForm = {
   applicantIdType: undefined,
   applicantMobile: undefined,
   relationshipToInsured: undefined,
+  insuredName: undefined,
   insuredSex: undefined,
   insuredIdNo: undefined,
   insuredIdType: undefined,
   insuredMobile: undefined,
+  delFlag: undefined,
+  version: undefined
 }
 const data = reactive<PageData<InsurancePolicyForm, InsurancePolicyQuery>>({
   form: {...initFormData},
   queryParams: {
     pageNum: 1,
     pageSize: 10,
-    productId: undefined,
     productCode: undefined,
     productName: undefined,
     policyNo: undefined,
     orderNo: undefined,
     agentName: undefined,
+    premium: undefined,
+    amt: undefined,
     commissionStatus: undefined,
     status: undefined,
     appntDate: undefined,
-    accecptDate: undefined,
-    policyInvalidDate: undefined,
-    policyStartDate: undefined,
-    policyEndDate: undefined,
+    applicantName: undefined,
     params: {
     }
   },
   rules: {
     id: [
       { required: true, message: "id不能为空", trigger: "blur" }
-    ],
-    productId: [
-      { required: true, message: "产品id不能为空", trigger: "blur" }
-    ],
-    productCode: [
-      { required: true, message: "产品编码不能为空", trigger: "blur" }
     ],
     productName: [
       { required: true, message: "产品名称不能为空", trigger: "blur" }
@@ -475,9 +494,6 @@ const data = reactive<PageData<InsurancePolicyForm, InsurancePolicyQuery>>({
     accecptDate: [
       { required: true, message: "承保时间不能为空", trigger: "blur" }
     ],
-    policyInvalidDate: [
-      { required: true, message: "保单失效时间不能为空", trigger: "blur" }
-    ],
     policyStartDate: [
       { required: true, message: "保障开始时间不能为空", trigger: "blur" }
     ],
@@ -501,6 +517,9 @@ const data = reactive<PageData<InsurancePolicyForm, InsurancePolicyQuery>>({
     ],
     relationshipToInsured: [
       { required: true, message: "被保人与投保人关系不能为空", trigger: "change" }
+    ],
+    insuredName: [
+      { required: true, message: "被保人姓名不能为空", trigger: "blur" }
     ],
     insuredSex: [
       { required: true, message: "被保人性别不能为空", trigger: "change" }
@@ -582,13 +601,9 @@ const submitForm = () => {
     if (valid) {
       buttonLoading.value = true;
       if (form.value.id) {
-        await updateInsurancePolicy(form.value).finally(() => {
-          buttonLoading.value = false;
-        });
+        await updateInsurancePolicy(form.value).finally(() =>  buttonLoading.value = false);
       } else {
-        await addInsurancePolicy(form.value).finally(() => {
-          buttonLoading.value = false;
-        });
+        await addInsurancePolicy(form.value).finally(() =>  buttonLoading.value = false);
       }
       proxy?.$modal.msgSuccess("操作成功");
       dialog.visible = false;
@@ -600,9 +615,7 @@ const submitForm = () => {
 /** 删除按钮操作 */
 const handleDelete = async (row?: InsurancePolicyVO) => {
   const _ids = row?.id || ids.value;
-  await proxy?.$modal.confirm('是否确认删除承保保单编号为"' + _ids + '"的数据项？').finally(() => {
-    loading.value = false;
-  });
+  await proxy?.$modal.confirm('是否确认删除承保保单编号为"' + _ids + '"的数据项？').finally(() => loading.value = false);
   await delInsurancePolicy(_ids);
   proxy?.$modal.msgSuccess("删除成功");
   await getList();

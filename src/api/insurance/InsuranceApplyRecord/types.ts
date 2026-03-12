@@ -10,6 +10,11 @@ export interface InsuranceApplyRecordVO {
   orderNo: string;
 
   /**
+   * 产品ID
+   */
+  productId: string | number;
+
+  /**
    * 产品编码
    */
   productCode: string;
@@ -23,6 +28,16 @@ export interface InsuranceApplyRecordVO {
    * 业务员姓名
    */
   agentName: string;
+
+  /**
+   * 业务员ID
+   */
+  agentUserId: string | number;
+
+  /**
+   * 所属机构ID
+   */
+  agentDeptId: string | number;
 
   /**
    * 客户姓名
@@ -53,6 +68,16 @@ export interface InsuranceApplyRecordVO {
    * 创建时间
    */
   createTime: string;
+
+  /**
+   * 删除标识
+   */
+  delFlag: string;
+
+  /**
+   * 乐观锁版本
+   */
+  version: number;
 
 }
 
@@ -122,6 +147,16 @@ export interface InsuranceApplyRecordForm extends BaseEntity {
    */
   commissionStatus?: number;
 
+  /**
+   * 删除标识
+   */
+  delFlag?: string;
+
+  /**
+   * 乐观锁版本
+   */
+  version?: number;
+
 }
 
 export interface InsuranceApplyRecordQuery extends PageQuery {
@@ -157,11 +192,6 @@ export interface InsuranceApplyRecordQuery extends PageQuery {
   customerMobile?: string;
 
   /**
-   * 登记保费
-   */
-  premium?: number;
-
-  /**
    * 订单状态
    */
   status?: number;
@@ -170,11 +200,6 @@ export interface InsuranceApplyRecordQuery extends PageQuery {
    * 结算状态
    */
   commissionStatus?: number;
-
-  /**
-   * 创建时间
-   */
-  createTime?: string;
 
   /**
    * 日期范围参数

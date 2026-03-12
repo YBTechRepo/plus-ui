@@ -1,4 +1,4 @@
-export interface InsuranceProductVO {
+export interface InsuranceProductConfigVO {
   /**
    * id
    */
@@ -15,7 +15,7 @@ export interface InsuranceProductVO {
   productName: string;
 
   /**
-   * 保险公司编码
+   * 保险公司
    */
   companyCode: string;
 
@@ -69,13 +69,18 @@ export interface InsuranceProductVO {
   createTime: string;
 
   /**
-   * 更新时间
+   * 删除标识
    */
-  updateTime: string;
+  delFlag: string;
+
+  /**
+   * 乐观锁版本
+   */
+  version: number;
 
 }
 
-export interface InsuranceProductForm extends BaseEntity {
+export interface InsuranceProductConfigForm extends BaseEntity {
   /**
    * id
    */
@@ -92,7 +97,7 @@ export interface InsuranceProductForm extends BaseEntity {
   productName?: string;
 
   /**
-   * 保险公司编码
+   * 保险公司
    */
   companyCode?: string;
 
@@ -136,9 +141,19 @@ export interface InsuranceProductForm extends BaseEntity {
    */
   sort?: number;
 
+  /**
+   * 删除标识
+   */
+  delFlag?: string;
+
+  /**
+   * 乐观锁版本
+   */
+  version?: number;
+
 }
 
-export interface InsuranceProductQuery extends PageQuery {
+export interface InsuranceProductConfigQuery extends PageQuery {
 
   /**
    * 产品编码
@@ -151,7 +166,7 @@ export interface InsuranceProductQuery extends PageQuery {
   productName?: string;
 
   /**
-   * 保险公司编码
+   * 保险公司
    */
   companyCode?: string;
 
@@ -164,6 +179,16 @@ export interface InsuranceProductQuery extends PageQuery {
    * 产品模式
    */
   productMode?: number;
+
+  /**
+   * 最低保费
+   */
+  minPremium?: number;
+
+  /**
+   * 产品图片
+   */
+  imgUrl?: string;
 
   /**
    * 产品状态
