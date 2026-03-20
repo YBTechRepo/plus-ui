@@ -46,12 +46,12 @@
           <el-col :span="1.5">
             <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['commission:CommissionProduct:add']">新增</el-button>
           </el-col>
-          <el-col :span="1.5">
+          <!-- <el-col :span="1.5">
             <el-button type="success" plain icon="Edit" :disabled="single" @click="handleUpdate()" v-hasPermi="['commission:CommissionProduct:edit']">修改</el-button>
-          </el-col>
-          <el-col :span="1.5">
+          </el-col> -->
+          <!-- <el-col :span="1.5">
             <el-button type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete()" v-hasPermi="['commission:CommissionProduct:remove']">删除</el-button>
-          </el-col>
+          </el-col> -->
           <el-col :span="1.5">
             <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['commission:CommissionProduct:export']">导出</el-button>
           </el-col>
@@ -61,13 +61,25 @@
 
       <el-table v-loading="loading" border :data="CommissionProductList" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column label="ID" align="center" prop="id" v-if="true" />
+        <!-- <el-table-column label="ID" align="center" prop="id" v-if="true" /> -->
         <el-table-column label="产品ID" align="center" prop="productId" />
         <el-table-column label="产品编码" align="center" prop="productCode" />
         <el-table-column label="产品名称" align="center" prop="productName" />
-        <el-table-column label="项目负责人比例" align="center" prop="projectRatio" />
-        <el-table-column label="团队负责人比例" align="center" prop="teamRatio" />
-        <el-table-column label="业务员比例" align="center" prop="salesRatio" />
+        <el-table-column label="项目负责人比例" align="center" prop="projectRatio">
+          <template #default="scope">
+            <span>{{ scope.row.projectRatio != null ? (Number(scope.row.projectRatio) * 100).toFixed(0) + '%' : '--' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="团队负责人比例" align="center" prop="teamRatio">
+          <template #default="scope">
+            <span>{{ scope.row.teamRatio != null ? (Number(scope.row.teamRatio) * 100).toFixed(0) + '%' : '--' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="业务员比例" align="center" prop="salesRatio">
+          <template #default="scope">
+            <span>{{ scope.row.salesRatio != null ? (Number(scope.row.salesRatio) * 100).toFixed(0) + '%' : '--' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="规则策略" align="center" prop="ruleStrategy">
           <template #default="scope">
             <dict-tag :options="commission_calc_strategy" :value="scope.row.ruleStrategy"/>
@@ -88,8 +100,8 @@
             <dict-tag :options="insurance_product_commission_status" :value="scope.row.status"/>
           </template>
         </el-table-column>
-        <el-table-column label="乐观锁版本号" align="center" prop="version" />
-        <el-table-column label="删除标志" align="center" prop="delFlag" />
+        <!-- <el-table-column label="乐观锁版本号" align="center" prop="version" /> -->
+        <!-- <el-table-column label="删除标志" align="center" prop="delFlag" /> -->
         <el-table-column label="创建时间" align="center" prop="createTime" width="180">
           <template #default="scope">
             <span>{{ parseTime(scope.row.createTime, '{y}-{m}-{d}') }}</span>
@@ -116,24 +128,37 @@
     </el-card>
     <!-- 添加或修改特殊产品费率配置对话框 -->
     <el-dialog :title="dialog.title" v-model="dialog.visible" width="500px" append-to-body>
-      <el-form ref="CommissionProductFormRef" :model="form" :rules="rules" label-width="80px">
-        <el-form-item label="产品ID" prop="productId">
-          <el-input v-model="form.productId" placeholder="请输入产品ID" />
-        </el-form-item>
-        <el-form-item label="产品编码" prop="productCode">
-          <el-input v-model="form.productCode" placeholder="请输入产品编码" />
-        </el-form-item>
+      <el-form ref="CommissionProductFormRef" :model="form" :rules="rules" label-width="120px">
         <el-form-item label="产品名称" prop="productName">
-          <el-input v-model="form.productName" placeholder="请输入产品名称" />
+          <el-select v-model="form.productName" placeholder="请选择产品" filterable clearable @change="handleProductChange">
+            <el-option
+              v-for="item in productOptions"
+              :key="item.id"
+              :label="item.productName"
+              :value="item.productName"
+            >
+              <span style="float: left">{{ item.productName }}</span>
+              <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">{{ item.productCode }}</span>
+            </el-option>
+          </el-select>
         </el-form-item>
-        <el-form-item label="项目负责人比例" prop="projectRatio">
-          <el-input v-model="form.projectRatio" placeholder="请输入项目负责人比例" />
+        <el-form-item label="项目负责人比例" prop="projectRatioDisplay">
+          <div style="display:flex;align-items:center;width:100%">
+            <el-slider v-model="projectRatioDisplay" :min="0" :max="100" :step="1" show-input :show-input-controls="false" style="flex:1" />
+            <span style="margin-left:8px">%</span>
+          </div>
         </el-form-item>
-        <el-form-item label="团队负责人比例" prop="teamRatio">
-          <el-input v-model="form.teamRatio" placeholder="请输入团队负责人比例" />
+        <el-form-item label="团队负责人比例" prop="teamRatioDisplay">
+          <div style="display:flex;align-items:center;width:100%">
+            <el-slider v-model="teamRatioDisplay" :min="0" :max="100" :step="1" show-input :show-input-controls="false" style="flex:1" />
+            <span style="margin-left:8px">%</span>
+          </div>
         </el-form-item>
-        <el-form-item label="业务员比例" prop="salesRatio">
-          <el-input v-model="form.salesRatio" placeholder="请输入业务员比例" />
+        <el-form-item label="业务员比例" prop="salesRatioDisplay" class="is-required">
+          <div style="display:flex;align-items:center;width:100%">
+            <el-slider v-model="salesRatioDisplay" :min="0" :max="100" :step="1" show-input :show-input-controls="false" style="flex:1" />
+            <span style="margin-left:8px">%</span>
+          </div>
         </el-form-item>
         <el-form-item label="规则策略" prop="ruleStrategy">
           <el-select v-model="form.ruleStrategy" placeholder="请选择规则策略">
@@ -171,12 +196,12 @@
             ></el-option>
           </el-select>
         </el-form-item>
-        <el-form-item label="乐观锁版本号" prop="version">
+        <!-- <el-form-item label="乐观锁版本号" prop="version">
           <el-input v-model="form.version" placeholder="请输入乐观锁版本号" />
-        </el-form-item>
-        <el-form-item label="删除标志" prop="delFlag">
+        </el-form-item> -->
+        <!-- <el-form-item label="删除标志" prop="delFlag">
           <el-input v-model="form.delFlag" placeholder="请输入删除标志" />
-        </el-form-item>
+        </el-form-item> -->
       </el-form>
       <template #footer>
         <div class="dialog-footer">
@@ -191,6 +216,8 @@
 <script setup name="CommissionProduct" lang="ts">
 import { listCommissionProduct, getCommissionProduct, delCommissionProduct, addCommissionProduct, updateCommissionProduct } from '@/api/commission/CommissionProduct';
 import { CommissionProductVO, CommissionProductQuery, CommissionProductForm } from '@/api/commission/CommissionProduct/types';
+import { listInsuranceTenantProduct } from '@/api/insurance/InsuranceTenantProduct';
+import type { InsuranceTenantProductVO } from '@/api/insurance/InsuranceTenantProduct/types';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const { insurance_product_commission_status, commission_calc_strategy } = toRefs<any>(proxy?.useDict('insurance_product_commission_status', 'commission_calc_strategy'));
@@ -217,9 +244,9 @@ const initFormData: CommissionProductForm = {
   productId: undefined,
   productCode: undefined,
   productName: undefined,
-  projectRatio: undefined,
-  teamRatio: undefined,
-  salesRatio: undefined,
+  projectRatio: 0,
+  teamRatio: 0,
+  salesRatio: 0,
   ruleStrategy: undefined,
   effectiveStart: undefined,
   effectiveEnd: undefined,
@@ -227,6 +254,53 @@ const initFormData: CommissionProductForm = {
   version: undefined,
   delFlag: undefined,
 }
+
+/** 比例展示层 (0-100整数)，后端存 0-1 */
+const projectRatioDisplay = ref<number>(0);
+const teamRatioDisplay = ref<number>(0);
+const salesRatioDisplay = ref<number>(0);
+
+/** 产品下拉选项 */
+const productOptions = ref<InsuranceTenantProductVO[]>([]);
+
+/** 异步加载上架中的租户产品列表 */
+const loadProductOptions = async () => {
+  const res = await listInsuranceTenantProduct({ status: 0, pageNum: 1, pageSize: 500 });
+  productOptions.value = res.rows ?? [];
+};
+
+/** 选中产品后自动填充 productId 和 productCode */
+const handleProductChange = (selectedName: string) => {
+  const product = productOptions.value.find(p => p.productName === selectedName);
+  if (product) {
+    form.value.productId   = product.productId as number;
+    form.value.productCode = product.productCode;
+  } else {
+    form.value.productId = undefined;
+    form.value.productCode = undefined;
+  }
+};
+
+const validateRatioSum = (_: any, __: any, callback: any) => {
+  const total = projectRatioDisplay.value + teamRatioDisplay.value + salesRatioDisplay.value;
+  if (total !== 100) {
+    callback(new Error(`三项比例之和必须等于100%，当前为 ${total}%`));
+  } else {
+    callback();
+  }
+};
+
+const validateSalesRatio = (_: any, __: any, callback: any) => {
+  if (salesRatioDisplay.value === undefined || salesRatioDisplay.value === null || salesRatioDisplay.value === 0) {
+    callback(new Error('业务员比例不能为空且必须大于0'));
+  } else {
+    validateRatioSum(_, __, callback);
+  }
+};
+
+watch(projectRatioDisplay, (val) => { form.value.projectRatio = parseFloat((val / 100).toFixed(4)); });
+watch(teamRatioDisplay,    (val) => { form.value.teamRatio    = parseFloat((val / 100).toFixed(4)); });
+watch(salesRatioDisplay,   (val) => { form.value.salesRatio   = parseFloat((val / 100).toFixed(4)); });
 const data = reactive<PageData<CommissionProductForm, CommissionProductQuery>>({
   form: {...initFormData},
   queryParams: {
@@ -253,14 +327,10 @@ const data = reactive<PageData<CommissionProductForm, CommissionProductQuery>>({
     productName: [
       { required: true, message: "产品名称不能为空", trigger: "blur" }
     ],
-    projectRatio: [
-      { required: true, message: "项目负责人比例不能为空", trigger: "blur" }
-    ],
-    teamRatio: [
-      { required: true, message: "团队负责人比例不能为空", trigger: "blur" }
-    ],
-    salesRatio: [
-      { required: true, message: "业务员比例不能为空", trigger: "blur" }
+    projectRatioDisplay: [{ validator: validateRatioSum, trigger: 'change' }],
+    teamRatioDisplay:    [{ validator: validateRatioSum, trigger: 'change' }],
+    salesRatioDisplay:   [
+      { validator: validateSalesRatio, trigger: 'change' }
     ],
     ruleStrategy: [
       { required: true, message: "规则策略不能为空", trigger: "change" }
@@ -297,6 +367,9 @@ const cancel = () => {
 /** 表单重置 */
 const reset = () => {
   form.value = {...initFormData};
+  projectRatioDisplay.value = 0;
+  teamRatioDisplay.value = 0;
+  salesRatioDisplay.value = 0;
   CommissionProductFormRef.value?.resetFields();
 }
 
@@ -322,6 +395,7 @@ const handleSelectionChange = (selection: CommissionProductVO[]) => {
 /** 新增按钮操作 */
 const handleAdd = () => {
   reset();
+  loadProductOptions();
   dialog.visible = true;
   dialog.title = "添加特殊产品费率配置";
 }
@@ -329,9 +403,13 @@ const handleAdd = () => {
 /** 修改按钮操作 */
 const handleUpdate = async (row?: CommissionProductVO) => {
   reset();
+  loadProductOptions();
   const _id = row?.id || ids.value[0]
   const res = await getCommissionProduct(_id);
   Object.assign(form.value, res.data);
+  projectRatioDisplay.value = res.data.projectRatio != null ? Math.round(Number(res.data.projectRatio) * 100) : 0;
+  teamRatioDisplay.value    = res.data.teamRatio    != null ? Math.round(Number(res.data.teamRatio)    * 100) : 0;
+  salesRatioDisplay.value   = res.data.salesRatio   != null ? Math.round(Number(res.data.salesRatio)   * 100) : 0;
   dialog.visible = true;
   dialog.title = "修改特殊产品费率配置";
 }

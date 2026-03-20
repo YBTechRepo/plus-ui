@@ -62,7 +62,7 @@
 
       <el-table v-loading="loading" border :data="InsuranceApplyRecordList" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column label="id" align="center" prop="id" v-if="true" />
+        <!-- <el-table-column label="id" align="center" prop="id" v-if="true" /> -->
         <el-table-column label="订单号" align="center" prop="orderNo" />
         <el-table-column label="产品ID" align="center" prop="productId" />
         <el-table-column label="产品编码" align="center" prop="productCode" />
@@ -88,9 +88,9 @@
             <span>{{ parseTime(scope.row.createTime, '{y}-{m}-{d}') }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="删除标识" align="center" prop="delFlag" />
-        <el-table-column label="乐观锁版本" align="center" prop="version" />
-        <el-table-column label="操作" align="center" fixed="right"  class-name="small-padding fixed-width">
+        <!-- <el-table-column label="删除标识" align="center" prop="delFlag" /> -->
+        <!-- <el-table-column label="乐观锁版本" align="center" prop="version" /> -->
+        <el-table-column label="操作" align="center" fixed="right" class-name="small-padding fixed-width">
           <template #default="scope">
             <el-tooltip content="修改" placement="top">
               <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['insurance:InsuranceApplyRecord:edit']"></el-button>
@@ -264,12 +264,6 @@ const data = reactive<PageData<InsuranceApplyRecordForm, InsuranceApplyRecordQue
     ],
     premium: [
       { required: true, message: "登记保费不能为空", trigger: "blur" }
-    ],
-    status: [
-      { required: true, message: "订单状态不能为空", trigger: "change" }
-    ],
-    commissionStatus: [
-      { required: true, message: "结算状态不能为空", trigger: "change" }
     ],
   }
 });

@@ -66,7 +66,7 @@
 
       <el-table v-loading="loading" border :data="InsuranceProductConfigList" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column label="id" align="center" prop="id" v-if="true" />
+        <el-table-column label="产品ID" align="center" prop="id" v-if="true" />
         <el-table-column label="产品编码" align="center" prop="productCode" />
         <el-table-column label="产品名称" align="center" prop="productName" />
         <el-table-column label="保险公司" align="center" prop="companyCode">
@@ -183,12 +183,12 @@
         <el-form-item label="产品排序" prop="sort">
           <el-input v-model="form.sort" placeholder="请输入产品排序" />
         </el-form-item>
-        <el-form-item label="删除标识" prop="delFlag">
+        <!-- <el-form-item label="删除标识" prop="delFlag">
           <el-input v-model="form.delFlag" placeholder="请输入删除标识" />
-        </el-form-item>
-        <el-form-item label="乐观锁版本" prop="version">
+        </el-form-item> -->
+        <!-- <el-form-item label="乐观锁版本" prop="version">
           <el-input v-model="form.version" placeholder="请输入乐观锁版本" />
-        </el-form-item>
+        </el-form-item> -->
       </el-form>
       <template #footer>
         <div class="dialog-footer">

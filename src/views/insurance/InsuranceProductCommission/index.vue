@@ -33,12 +33,12 @@
           <el-col :span="1.5">
             <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['insurance:InsuranceProductCommission:add']">新增</el-button>
           </el-col>
-          <el-col :span="1.5">
+          <!-- <el-col :span="1.5">
             <el-button type="success" plain icon="Edit" :disabled="single" @click="handleUpdate()" v-hasPermi="['insurance:InsuranceProductCommission:edit']">修改</el-button>
-          </el-col>
-          <el-col :span="1.5">
+          </el-col> -->
+          <!-- <el-col :span="1.5">
             <el-button type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete()" v-hasPermi="['insurance:InsuranceProductCommission:remove']">删除</el-button>
-          </el-col>
+          </el-col> -->
           <el-col :span="1.5">
             <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['insurance:InsuranceProductCommission:export']">导出</el-button>
           </el-col>
@@ -48,11 +48,15 @@
 
       <el-table v-loading="loading" border :data="InsuranceProductCommissionList" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column label="id" align="center" prop="id" v-if="true" />
+        <!-- <el-table-column label="id" align="center" prop="id" v-if="true" /> -->
         <el-table-column label="产品ID" align="center" prop="productId" />
         <el-table-column label="产品编码" align="center" prop="productCode" />
         <el-table-column label="产品名称" align="center" prop="productName" />
-        <el-table-column label="基础佣金比例" align="center" prop="commissionRate" />
+        <el-table-column label="基础佣金比例" align="center" prop="commissionRate">
+          <template #default="scope">
+            <span>{{ scope.row.commissionRate != null ? (Number(scope.row.commissionRate) * 100).toFixed(2) + '%' : '--' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="费率生效时间" align="center" prop="effectiveTime" width="180">
           <template #default="scope">
             <span>{{ parseTime(scope.row.effectiveTime, '{y}-{m}-{d}') }}</span>
@@ -68,8 +72,8 @@
             <dict-tag :options="insurance_product_commission_status" :value="scope.row.status"/>
           </template>
         </el-table-column>
-        <el-table-column label="乐观锁版本号" align="center" prop="version" />
-        <el-table-column label="删除标志" align="center" prop="delFlag" />
+        <!-- <el-table-column label="乐观锁版本号" align="center" prop="version" /> -->
+        <!-- <el-table-column label="删除标志" align="center" prop="delFlag" /> -->
         <el-table-column label="操作" align="center" fixed="right"  class-name="small-padding fixed-width">
           <template #default="scope">
             <el-tooltip content="修改" placement="top">
@@ -87,17 +91,38 @@
     <!-- 添加或修改佣金配置对话框 -->
     <el-dialog :title="dialog.title" v-model="dialog.visible" width="500px" append-to-body>
       <el-form ref="InsuranceProductCommissionFormRef" :model="form" :rules="rules" label-width="80px">
-        <el-form-item label="产品ID" prop="productId">
-          <el-input v-model="form.productId" placeholder="请输入产品ID" />
-        </el-form-item>
-        <el-form-item label="产品编码" prop="productCode">
-          <el-input v-model="form.productCode" placeholder="请输入产品编码" />
-        </el-form-item>
         <el-form-item label="产品名称" prop="productName">
-          <el-input v-model="form.productName" placeholder="请输入产品名称" />
+          <el-select
+            v-model="form.productName"
+            placeholder="请选择产品"
+            filterable
+            style="width: 100%"
+            @change="handleProductChange"
+          >
+            <el-option
+              v-for="item in productOptions"
+              :key="item.id"
+              :label="item.productName"
+              :value="item.productName"
+            >
+              <span>{{ item.productName }}</span>
+              <span style="float:right;color:#8492a6;font-size:12px">{{ item.productCode }}</span>
+            </el-option>
+          </el-select>
         </el-form-item>
-        <el-form-item label="基础佣金比例" prop="commissionRate">
-          <el-input v-model="form.commissionRate" placeholder="请输入基础佣金比例" />
+        <el-form-item label="基础佣金比例" prop="commissionRateDisplay">
+          <div style="display: flex; align-items: center; width: 100%;">
+            <el-slider
+              v-model="commissionRateDisplay"
+              :min="0"
+              :max="100"
+              :step="1"
+              show-input
+              :show-input-controls="false"
+              style="flex: 1;"
+            />
+            <span style="margin-left: 10px; white-space: nowrap;">%</span>
+          </div>
         </el-form-item>
         <el-form-item label="费率生效时间" prop="effectiveTime">
           <el-date-picker clearable
@@ -125,12 +150,12 @@
             ></el-option>
           </el-select>
         </el-form-item>
-        <el-form-item label="乐观锁版本号" prop="version">
+        <!-- <el-form-item label="乐观锁版本号" prop="version">
           <el-input v-model="form.version" placeholder="请输入乐观锁版本号" />
-        </el-form-item>
-        <el-form-item label="删除标志" prop="delFlag">
+        </el-form-item> -->
+        <!-- <el-form-item label="删除标志" prop="delFlag">
           <el-input v-model="form.delFlag" placeholder="请输入删除标志" />
-        </el-form-item>
+        </el-form-item> -->
       </el-form>
       <template #footer>
         <div class="dialog-footer">
@@ -145,6 +170,8 @@
 <script setup name="InsuranceProductCommission" lang="ts">
 import { listInsuranceProductCommission, getInsuranceProductCommission, delInsuranceProductCommission, addInsuranceProductCommission, updateInsuranceProductCommission } from '@/api/insurance/InsuranceProductCommission';
 import { InsuranceProductCommissionVO, InsuranceProductCommissionQuery, InsuranceProductCommissionForm } from '@/api/insurance/InsuranceProductCommission/types';
+import { listInsuranceTenantProduct } from '@/api/insurance/InsuranceTenantProduct';
+import type { InsuranceTenantProductVO } from '@/api/insurance/InsuranceTenantProduct/types';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const { insurance_product_commission_status } = toRefs<any>(proxy?.useDict('insurance_product_commission_status'));
@@ -171,13 +198,38 @@ const initFormData: InsuranceProductCommissionForm = {
   productId: undefined,
   productCode: undefined,
   productName: undefined,
-  commissionRate: undefined,
+  commissionRate: 0,
   effectiveTime: undefined,
   expirationTime: undefined,
   status: undefined,
   version: undefined,
   delFlag: undefined,
 }
+
+/** 前端展示的百分比值 (0-100)，与 form.commissionRate (0-1) 之间自动转换 */
+const commissionRateDisplay = ref<number>(0);
+
+/** 产品下拉选项 */
+const productOptions = ref<InsuranceTenantProductVO[]>([]);
+
+/** 异步加载启用中的产品列表 */
+const loadProductOptions = async () => {
+  const res = await listInsuranceTenantProduct({ status: 0, pageNum: 1, pageSize: 500 });
+  productOptions.value = res.rows ?? [];
+};
+
+/** 选中产品后自动填充 productId 和 productCode */
+const handleProductChange = (selectedName: string) => {
+  const product = productOptions.value.find(p => p.productName === selectedName);
+  if (product) {
+    form.value.productId   = product.productId;
+    form.value.productCode = product.productCode;
+  }
+};
+
+watch(commissionRateDisplay, (val) => {
+  form.value.commissionRate = parseFloat((val / 100).toFixed(4));
+});
 const data = reactive<PageData<InsuranceProductCommissionForm, InsuranceProductCommissionQuery>>({
   form: {...initFormData},
   queryParams: {
@@ -205,6 +257,18 @@ const data = reactive<PageData<InsuranceProductCommissionForm, InsuranceProductC
     ],
     commissionRate: [
       { required: true, message: "基础佣金比例不能为空", trigger: "blur" }
+    ],
+    commissionRateDisplay: [
+      {
+        validator: (_: any, __: any, callback: any) => {
+          if (commissionRateDisplay.value === undefined || commissionRateDisplay.value === null) {
+            callback(new Error('基础佣金比例不能为空'));
+          } else {
+            callback();
+          }
+        },
+        trigger: 'change'
+      }
     ],
     effectiveTime: [
       { required: true, message: "费率生效时间不能为空", trigger: "blur" }
@@ -238,6 +302,7 @@ const cancel = () => {
 /** 表单重置 */
 const reset = () => {
   form.value = {...initFormData};
+  commissionRateDisplay.value = 0;
   InsuranceProductCommissionFormRef.value?.resetFields();
 }
 
@@ -263,6 +328,7 @@ const handleSelectionChange = (selection: InsuranceProductCommissionVO[]) => {
 /** 新增按钮操作 */
 const handleAdd = () => {
   reset();
+  loadProductOptions();
   dialog.visible = true;
   dialog.title = "添加佣金配置";
 }
@@ -270,9 +336,14 @@ const handleAdd = () => {
 /** 修改按钮操作 */
 const handleUpdate = async (row?: InsuranceProductCommissionVO) => {
   reset();
+  loadProductOptions();
   const _id = row?.id || ids.value[0]
   const res = await getInsuranceProductCommission(_id);
   Object.assign(form.value, res.data);
+  // 后端是 0-1，转换为前端展示的 0-100
+  commissionRateDisplay.value = res.data.commissionRate != null
+    ? parseFloat((Number(res.data.commissionRate) * 100).toFixed(2))
+    : 0;
   dialog.visible = true;
   dialog.title = "修改佣金配置";
 }

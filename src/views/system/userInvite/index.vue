@@ -31,7 +31,7 @@
     </transition>
 
     <el-card shadow="never">
-      <template #header>
+      <!-- <template #header>
         <el-row :gutter="10" class="mb8">
           <el-col :span="1.5">
             <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['system:userInvite:add']">新增</el-button>
@@ -47,18 +47,18 @@
           </el-col>
           <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
         </el-row>
-      </template>
+      </template> -->
 
       <el-table v-loading="loading" border :data="userInviteList" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column label="ID" align="center" prop="id" v-if="true" />
+        <!-- <el-table-column label="ID" align="center" prop="id" v-if="true" /> -->
         <el-table-column label="用户账号" align="center" prop="userName" />
         <el-table-column label="用户姓名" align="center" prop="nickName" />
         <el-table-column label="手机号码" align="center" prop="phoneNumber" />
         <el-table-column label="身份证号" align="center" prop="idCard" />
         <el-table-column label="推荐人" align="center" prop="referrerName" />
-        <el-table-column label="推荐人id" align="center" prop="referrerId" />
-        <el-table-column label="申请部门ID(可选)" align="center" prop="deptId" />
+        <!-- <el-table-column label="推荐人id" align="center" prop="referrerId" /> -->
+        <!-- <el-table-column label="申请部门ID(可选)" align="center" prop="deptId" /> -->
         <el-table-column label="审核状态" align="center" prop="status">
           <template #default="scope">
             <dict-tag :options="user_invite_audit_status" :value="scope.row.status"/>
@@ -70,16 +70,13 @@
             <span>{{ parseTime(scope.row.createTime, '{y}-{m}-{d}') }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="删除标识" align="center" prop="delFlag" />
-        <el-table-column label="乐观锁版本" align="center" prop="version" />
+        <!-- <el-table-column label="删除标识" align="center" prop="delFlag" /> -->
+        <!-- <el-table-column label="乐观锁版本" align="center" prop="version" /> -->
         <el-table-column label="操作" align="center" fixed="right"  class-name="small-padding fixed-width">
           <template #default="scope">
-            <el-tooltip content="修改" placement="top">
-              <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['system:userInvite:edit']"></el-button>
-            </el-tooltip>
-            <el-tooltip content="删除" placement="top">
-              <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['system:userInvite:remove']"></el-button>
-            </el-tooltip>
+            <!-- 修改和删除按钮（已注释） -->
+            <el-button v-if="scope.row.status == 0" link type="warning" icon="Finished" @click="handleAudit(scope.row)" v-hasPermi="['system:userInvite:edit']">审核</el-button>
+            <span v-else style="color: #909399; font-size: 12px">已审核</span>
           </template>
         </el-table-column>
       </el-table>
@@ -137,12 +134,38 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 审核对话框 -->
+    <el-dialog title="审核" v-model="auditDialog.visible" width="450px" append-to-body>
+      <el-form ref="auditFormRef" :model="auditForm" :rules="auditRules" label-width="80px">
+        <el-form-item label="审核状态" prop="status">
+          <el-select v-model="auditForm.status" placeholder="请选择审核结果" style="width:100%">
+            <el-option
+              v-for="dict in auditStatusOptions"
+              :key="dict.value"
+              :label="dict.label"
+              :value="parseInt(dict.value)"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="审核意见" prop="remark">
+          <el-input v-model="auditForm.remark" type="textarea" :rows="3" placeholder="请输入审核意见" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button :loading="auditLoading" type="primary" @click="submitAudit">确 定</el-button>
+          <el-button @click="auditDialog.visible = false">取 消</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup name="UserInvite" lang="ts">
 import { listUserInvite, getUserInvite, delUserInvite, addUserInvite, updateUserInvite } from '@/api/system/userInvite';
 import { UserInviteVO, UserInviteQuery, UserInviteForm } from '@/api/system/userInvite/types';
+import request from '@/utils/request';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const { user_invite_audit_status } = toRefs<any>(proxy?.useDict('user_invite_audit_status'));
@@ -163,6 +186,24 @@ const dialog = reactive<DialogOption>({
   visible: false,
   title: ''
 });
+
+/** 审核对话框状态 */
+const auditDialog = reactive({ visible: false });
+const auditLoading = ref(false);
+const auditFormRef = ref<ElFormInstance>();
+const auditForm = reactive<{ id: string | number | undefined; status: number | undefined; remark: string }>({
+  id: undefined,
+  status: undefined,
+  remark: ''
+});
+const auditRules = {
+  status: [{ required: true, message: '请选择审核结果', trigger: 'change' }]
+};
+
+/** 审核状态选项：排除待审核（value=0），只保留通过/不通过 */
+const auditStatusOptions = computed(() =>
+  (user_invite_audit_status.value ?? []).filter((d: any) => parseInt(d.value) !== 0)
+);
 
 const initFormData: UserInviteForm = {
   id: undefined,
@@ -313,6 +354,40 @@ const handleExport = () => {
     ...queryParams.value
   }, `userInvite_${new Date().getTime()}.xlsx`)
 }
+
+/** 审核 - 打开对话框 */
+const handleAudit = (row: UserInviteVO) => {
+  auditForm.id = row.id;
+  auditForm.status = undefined;
+  auditForm.remark = '';
+  auditFormRef.value?.resetFields();
+  auditDialog.visible = true;
+};
+
+/** 审核 - 提交 */
+const submitAudit = () => {
+  auditFormRef.value?.validate(async (valid: boolean) => {
+    if (!valid) return;
+    auditLoading.value = true;
+    try {
+      // 先拉取完整记录，作为 RequestBody 传给后端
+      const { data: fullRecord } = await getUserInvite(auditForm.id);
+      // POST /system/userInvite/register，inviteId 作为 URL 参数
+      await request({
+        url: '/system/userInvite/approve',
+        method: 'post',
+        data: { ...fullRecord, status: auditForm.status, remark: auditForm.remark, inviteId: auditForm.id }
+      });
+      proxy?.$modal.msgSuccess('审核成功');
+      auditDialog.visible = false;
+      await getList();
+    } catch (e) {
+      console.warn('[submitAudit] error:', e);
+    } finally {
+      auditLoading.value = false;
+    }
+  });
+};
 
 onMounted(() => {
   getList();

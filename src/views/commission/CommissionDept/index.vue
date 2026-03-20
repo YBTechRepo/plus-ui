@@ -61,9 +61,21 @@
         <!-- <el-table-column label="ID" align="center" prop="id" v-if="true" /> -->
         <!-- <el-table-column label="部门ID" align="center" prop="deptId" /> -->
         <el-table-column label="部门名称" align="center" prop="deptName" />
-        <el-table-column label="项目负责人比例" align="center" prop="projectRatio" />
-        <el-table-column label="团队负责人比例" align="center" prop="teamRatio" />
-        <el-table-column label="业务员比例" align="center" prop="salesRatio" />
+        <el-table-column label="项目负责人比例" align="center" prop="projectRatio">
+          <template #default="scope">
+            <span>{{ scope.row.projectRatio != null ? (Number(scope.row.projectRatio) * 100).toFixed(0) + '%' : '--' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="团队负责人比例" align="center" prop="teamRatio">
+          <template #default="scope">
+            <span>{{ scope.row.teamRatio != null ? (Number(scope.row.teamRatio) * 100).toFixed(0) + '%' : '--' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="业务员比例" align="center" prop="salesRatio">
+          <template #default="scope">
+            <span>{{ scope.row.salesRatio != null ? (Number(scope.row.salesRatio) * 100).toFixed(0) + '%' : '--' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="生效开始时间" align="center" prop="effectiveStart" width="180">
           <template #default="scope">
             <span>{{ parseTime(scope.row.effectiveStart, '{y}-{m}-{d}') }}</span>
@@ -107,21 +119,30 @@
     </el-card>
     <!-- 添加或修改机构费率配置对话框 -->
     <el-dialog :title="dialog.title" v-model="dialog.visible" width="500px" append-to-body>
-      <el-form ref="CommissionDeptFormRef" :model="form" :rules="rules" label-width="80px">
+      <el-form ref="CommissionDeptFormRef" :model="form" :rules="rules" label-width="120px">
         <el-form-item label="部门ID" prop="deptId">
           <el-input v-model="form.deptId" placeholder="请输入部门ID" />
         </el-form-item>
         <el-form-item label="部门名称" prop="deptName">
           <el-input v-model="form.deptName" placeholder="请输入部门名称" />
         </el-form-item>
-        <el-form-item label="项目负责人比例" prop="projectRatio">
-          <el-input v-model="form.projectRatio" placeholder="请输入项目负责人比例" />
+        <el-form-item label="项目负责人比例" prop="projectRatioDisplay">
+          <div style="display:flex;align-items:center;width:100%">
+            <el-slider v-model="projectRatioDisplay" :min="0" :max="100" :step="1" show-input :show-input-controls="false" style="flex:1" />
+            <span style="margin-left:8px">%</span>
+          </div>
         </el-form-item>
-        <el-form-item label="团队负责人比例" prop="teamRatio">
-          <el-input v-model="form.teamRatio" placeholder="请输入团队负责人比例" />
+        <el-form-item label="团队负责人比例" prop="teamRatioDisplay">
+          <div style="display:flex;align-items:center;width:100%">
+            <el-slider v-model="teamRatioDisplay" :min="0" :max="100" :step="1" show-input :show-input-controls="false" style="flex:1" />
+            <span style="margin-left:8px">%</span>
+          </div>
         </el-form-item>
-        <el-form-item label="业务员比例" prop="salesRatio">
-          <el-input v-model="form.salesRatio" placeholder="请输入业务员比例" />
+        <el-form-item label="业务员比例" prop="salesRatioDisplay" class="is-required">
+          <div style="display:flex;align-items:center;width:100%">
+            <el-slider v-model="salesRatioDisplay" :min="0" :max="100" :step="1" show-input :show-input-controls="false" style="flex:1" />
+            <span style="margin-left:8px">%</span>
+          </div>
         </el-form-item>
         <el-form-item label="生效开始时间" prop="effectiveStart">
           <el-date-picker clearable
@@ -194,15 +215,42 @@ const initFormData: CommissionDeptForm = {
   id: undefined,
   deptId: undefined,
   deptName: undefined,
-  projectRatio: undefined,
-  teamRatio: undefined,
-  salesRatio: undefined,
+  projectRatio: 0,
+  teamRatio: 0,
+  salesRatio: 0,
   effectiveStart: undefined,
   effectiveEnd: undefined,
   status: undefined,
   version: undefined,
   delFlag: undefined,
 }
+
+/** 比例展示层 (0-100整数)，后端存 0-1 */
+const projectRatioDisplay = ref<number>(0);
+const teamRatioDisplay = ref<number>(0);
+const salesRatioDisplay = ref<number>(0);
+
+/** 验证三者之和不超过100% */
+const validateRatioSum = (_: any, __: any, callback: any) => {
+  const total = projectRatioDisplay.value + teamRatioDisplay.value + salesRatioDisplay.value;
+  if (total !== 100) {
+    callback(new Error(`三项比例之和必须等于100%，当前为 ${total}%`));
+  } else {
+    callback();
+  }
+};
+
+const validateSalesRatio = (_: any, __: any, callback: any) => {
+  if (salesRatioDisplay.value === undefined || salesRatioDisplay.value === null || salesRatioDisplay.value === 0) {
+    callback(new Error('业务员比例不能为空且必须大于0'));
+  } else {
+    validateRatioSum(_, __, callback);
+  }
+};
+
+watch(projectRatioDisplay, (val) => { form.value.projectRatio = parseFloat((val / 100).toFixed(4)); });
+watch(teamRatioDisplay,    (val) => { form.value.teamRatio    = parseFloat((val / 100).toFixed(4)); });
+watch(salesRatioDisplay,   (val) => { form.value.salesRatio   = parseFloat((val / 100).toFixed(4)); });
 const data = reactive<PageData<CommissionDeptForm, CommissionDeptQuery>>({
   form: {...initFormData},
   queryParams: {
@@ -225,14 +273,10 @@ const data = reactive<PageData<CommissionDeptForm, CommissionDeptQuery>>({
     deptName: [
       { required: true, message: "部门名称不能为空", trigger: "blur" }
     ],
-    projectRatio: [
-      { required: true, message: "项目负责人比例不能为空", trigger: "blur" }
-    ],
-    teamRatio: [
-      { required: true, message: "团队负责人比例不能为空", trigger: "blur" }
-    ],
-    salesRatio: [
-      { required: true, message: "业务员比例不能为空", trigger: "blur" }
+    projectRatioDisplay: [{ validator: validateRatioSum, trigger: 'change' }],
+    teamRatioDisplay:    [{ validator: validateRatioSum, trigger: 'change' }],
+    salesRatioDisplay:   [
+      { validator: validateSalesRatio, trigger: 'change' }
     ],
     effectiveStart: [
       { required: true, message: "生效开始时间不能为空", trigger: "blur" }
@@ -266,6 +310,9 @@ const cancel = () => {
 /** 表单重置 */
 const reset = () => {
   form.value = {...initFormData};
+  projectRatioDisplay.value = 0;
+  teamRatioDisplay.value = 0;
+  salesRatioDisplay.value = 0;
   CommissionDeptFormRef.value?.resetFields();
 }
 
@@ -301,6 +348,9 @@ const handleUpdate = async (row?: CommissionDeptVO) => {
   const _id = row?.id || ids.value[0]
   const res = await getCommissionDept(_id);
   Object.assign(form.value, res.data);
+  projectRatioDisplay.value = res.data.projectRatio != null ? Math.round(Number(res.data.projectRatio) * 100) : 0;
+  teamRatioDisplay.value    = res.data.teamRatio    != null ? Math.round(Number(res.data.teamRatio)    * 100) : 0;
+  salesRatioDisplay.value   = res.data.salesRatio   != null ? Math.round(Number(res.data.salesRatio)   * 100) : 0;
   dialog.visible = true;
   dialog.title = "修改机构费率配置";
 }

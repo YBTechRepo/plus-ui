@@ -69,9 +69,21 @@
         <!-- <el-table-column label="乐观锁" align="center" prop="version" /> -->
         <!-- <el-table-column label="删除标志" align="center" prop="delFlag" /> -->
         
-        <el-table-column label="业务佣金比例" align="center" prop="salesRatio" />
-        <el-table-column label="团队佣金比例" align="center" prop="teamRatio" />
-        <el-table-column label="总负责人佣金比例" align="center" prop="projectRatio" />
+        <el-table-column label="业务佣金比例" align="center" prop="salesRatio">
+          <template #default="scope">
+            <span>{{ scope.row.salesRatio != null ? (Number(scope.row.salesRatio) * 100).toFixed(0) + '%' : '--' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="团队佣金比例" align="center" prop="teamRatio">
+          <template #default="scope">
+            <span>{{ scope.row.teamRatio != null ? (Number(scope.row.teamRatio) * 100).toFixed(0) + '%' : '--' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="总负责人佣金比例" align="center" prop="projectRatio">
+          <template #default="scope">
+            <span>{{ scope.row.projectRatio != null ? (Number(scope.row.projectRatio) * 100).toFixed(0) + '%' : '--' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="业务员姓名" align="center" prop="salesUserName" />
         <el-table-column label="团队负责人姓名" align="center" prop="teamUserName" />
         <el-table-column label="总负责人姓名" align="center" prop="projectUserName" />
