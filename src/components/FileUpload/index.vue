@@ -93,13 +93,26 @@ watch(
       if (Array.isArray(val)) {
         list = val;
       } else {
-        const res = await listByIds(val);
-        list = res.data.map((oss) => {
-          return {
-            name: oss.originalName,
-            url: oss.url,
-            ossId: oss.ossId
-          };
+        const strVal = String(val);
+        const idList = strVal.split(',').filter(item => item !== '' && !item.startsWith('http'));
+        const urlList = strVal.split(',').filter(item => item !== '' && item.startsWith('http'));
+
+        if (idList.length > 0) {
+          const res = await listByIds(idList.join(','));
+          list = res.data.map((oss) => {
+            return {
+              name: oss.originalName,
+              url: oss.url,
+              ossId: oss.ossId
+            };
+          });
+        }
+
+        urlList.forEach(url => {
+          list.push({
+             name: url.substring(url.lastIndexOf('/') + 1),
+             url: url
+          });
         });
       }
       // 然后将数组转为对象数组
@@ -177,7 +190,9 @@ const handleUploadSuccess = (res: any, file: UploadFile) => {
 // 删除文件
 const handleDelete = (index: number) => {
   const ossId = fileList.value[index].ossId;
-  delOss(ossId);
+  if (ossId) {
+    delOss(ossId);
+  }
   fileList.value.splice(index, 1);
   emit('update:modelValue', listToString(fileList.value));
 };
@@ -210,6 +225,8 @@ const listToString = (list: any[], separator?: string) => {
   list.forEach((item) => {
     if (item.ossId) {
       strs += item.ossId + separator;
+    } else if (item.url) {
+      strs += item.url + separator;
     }
   });
   return strs != '' ? strs.substring(0, strs.length - 1) : '';

@@ -44,15 +44,15 @@
     <el-card shadow="never">
       <template #header>
         <el-row :gutter="10" class="mb8">
-          <el-col :span="1.5">
+          <!-- <el-col :span="1.5">
             <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['insurance:InsuranceApplyRecord:add']">新增</el-button>
-          </el-col>
-          <el-col :span="1.5">
+          </el-col> -->
+          <!-- <el-col :span="1.5">
             <el-button type="success" plain icon="Edit" :disabled="single" @click="handleUpdate()" v-hasPermi="['insurance:InsuranceApplyRecord:edit']">修改</el-button>
-          </el-col>
-          <el-col :span="1.5">
+          </el-col> -->
+          <!-- <el-col :span="1.5">
             <el-button type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete()" v-hasPermi="['insurance:InsuranceApplyRecord:remove']">删除</el-button>
-          </el-col>
+          </el-col> -->
           <el-col :span="1.5">
             <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['insurance:InsuranceApplyRecord:export']">导出</el-button>
           </el-col>
@@ -64,12 +64,12 @@
         <el-table-column type="selection" width="55" align="center" />
         <!-- <el-table-column label="id" align="center" prop="id" v-if="true" /> -->
         <el-table-column label="订单号" align="center" prop="orderNo" />
-        <el-table-column label="产品ID" align="center" prop="productId" />
+        <!-- <el-table-column label="产品ID" align="center" prop="productId" /> -->
         <el-table-column label="产品编码" align="center" prop="productCode" />
         <el-table-column label="产品名称" align="center" prop="productName" />
         <el-table-column label="业务员姓名" align="center" prop="agentName" />
-        <el-table-column label="业务员ID" align="center" prop="agentUserId" />
-        <el-table-column label="所属机构ID" align="center" prop="agentDeptId" />
+        <!-- <el-table-column label="业务员ID" align="center" prop="agentUserId" /> -->
+        <!-- <el-table-column label="所属机构ID" align="center" prop="agentDeptId" /> -->
         <el-table-column label="客户姓名" align="center" prop="customerName" />
         <el-table-column label="客户手机号" align="center" prop="customerMobile" />
         <el-table-column label="登记保费" align="center" prop="premium" />
@@ -90,14 +90,17 @@
         </el-table-column>
         <!-- <el-table-column label="删除标识" align="center" prop="delFlag" /> -->
         <!-- <el-table-column label="乐观锁版本" align="center" prop="version" /> -->
-        <el-table-column label="操作" align="center" fixed="right" class-name="small-padding fixed-width">
+        <el-table-column label="操作" align="center" fixed="right" width="160" class-name="small-padding fixed-width">
           <template #default="scope">
-            <el-tooltip content="修改" placement="top">
-              <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['insurance:InsuranceApplyRecord:edit']"></el-button>
+            <el-tooltip content="审批" placement="top">
+              <el-button link type="primary" icon="Check" :disabled="scope.row.status == 0" @click="handleApprove(scope.row)" v-hasPermi="['insurance:InsuranceApplyRecord:edit']">审批</el-button>
             </el-tooltip>
-            <el-tooltip content="删除" placement="top">
+            <!-- <el-tooltip content="修改" placement="top">
+              <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['insurance:InsuranceApplyRecord:edit']">修改</el-button>
+            </el-tooltip> -->
+            <!-- <el-tooltip content="删除" placement="top">
               <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['insurance:InsuranceApplyRecord:remove']"></el-button>
-            </el-tooltip>
+            </el-tooltip> -->
           </template>
         </el-table-column>
       </el-table>
@@ -171,11 +174,33 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 审批/修改状态对话框 -->
+    <el-dialog :title="approveDialog.title" v-model="approveDialog.visible" width="400px" append-to-body>
+      <el-form ref="ApproveFormRef" :model="approveForm" :rules="approveRules" label-width="100px">
+        <el-form-item label="订单状态" prop="status">
+          <el-select v-model="approveForm.status" placeholder="请选择订单状态" style="width: 100%">
+            <el-option
+                v-for="dict in insurance_apply_status"
+                :key="dict.value"
+                :label="dict.label"
+                :value="parseInt(dict.value)"
+            ></el-option>
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button :loading="approveButtonLoading" type="primary" @click="submitApprove">确 定</el-button>
+          <el-button @click="cancelApprove">取 消</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup name="InsuranceApplyRecord" lang="ts">
-import { listInsuranceApplyRecord, getInsuranceApplyRecord, delInsuranceApplyRecord, addInsuranceApplyRecord, updateInsuranceApplyRecord } from '@/api/insurance/InsuranceApplyRecord';
+import { listInsuranceApplyRecord, getInsuranceApplyRecord, delInsuranceApplyRecord, addInsuranceApplyRecord, updateInsuranceApplyRecord, confirmPay } from '@/api/insurance/InsuranceApplyRecord';
 import { InsuranceApplyRecordVO, InsuranceApplyRecordQuery, InsuranceApplyRecordForm } from '@/api/insurance/InsuranceApplyRecord/types';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
@@ -197,6 +222,15 @@ const dialog = reactive<DialogOption>({
   visible: false,
   title: ''
 });
+
+// 审批用的表单和数据
+const ApproveFormRef = ref<ElFormInstance>();
+const approveDialog = reactive<DialogOption>({ visible: false, title: '审批订单记录' });
+const approveButtonLoading = ref(false);
+const approveForm = ref<any>({});
+const approveRules = {
+  status: [{ required: true, message: "请选择订单状态", trigger: "change" }]
+};
 
 const initFormData: InsuranceApplyRecordForm = {
   id: undefined,
@@ -340,6 +374,35 @@ const submitForm = () => {
       proxy?.$modal.msgSuccess("操作成功");
       dialog.visible = false;
       await getList();
+    }
+  });
+}
+
+/** 审批按钮打开弹窗 */
+const handleApprove = (row: InsuranceApplyRecordVO) => {
+  approveForm.value = { ...row };
+  approveDialog.visible = true;
+}
+
+/** 取消审批弹窗 */
+const cancelApprove = () => {
+  approveDialog.visible = false;
+  ApproveFormRef.value?.resetFields();
+}
+
+/** 提交审批调用 confirmPay 接口 */
+const submitApprove = () => {
+  ApproveFormRef.value?.validate(async (valid: boolean) => {
+    if (valid) {
+      approveButtonLoading.value = true;
+      try {
+        await confirmPay(approveForm.value);
+        proxy?.$modal.msgSuccess("审批成功");
+        approveDialog.visible = false;
+        await getList();
+      } finally {
+        approveButtonLoading.value = false;
+      }
     }
   });
 }

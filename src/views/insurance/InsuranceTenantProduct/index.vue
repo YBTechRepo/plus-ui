@@ -58,13 +58,23 @@
             <dict-tag :options="insurance_product_mode" :value="scope.row.productMode"/>
           </template>
         </el-table-column>
-        <el-table-column label="最低保费" align="center" prop="minPremium" />
+        <el-table-column label="保费" align="center" prop="minPremium" />
+        <el-table-column label="服务费" align="center" prop="serviceFee">
+          <template #default="scope">
+            <span>{{ scope.row.serviceFee != null ? (parseFloat(scope.row.serviceFee) * 100).toFixed(2) + '%' : '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="净费出单" align="center" prop="netPremium">
+          <template #default="scope">
+            <span>{{ scope.row.netPremium != null ? scope.row.netPremium : '-' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="产品头图" align="center" prop="imgUrlUrl">
           <template #default="scope">
              <image-preview :src="scope.row.imgUrl" :width="50" :height="50"/>
           </template>
         </el-table-column>
-        <el-table-column label="产品特点" align="center" prop="description" />
+        <!-- <el-table-column label="产品特点" align="center" prop="description" /> -->
         <el-table-column label="上架状态" align="center" prop="status">
           <template #default="scope">
             <dict-tag :options="insurance_product_status" :value="scope.row.status"/>

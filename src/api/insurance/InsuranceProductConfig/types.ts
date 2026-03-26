@@ -78,6 +78,16 @@ export interface InsuranceProductConfigVO {
    */
   version: number;
 
+  /**
+   * 产品特点
+   */
+  productFeatures?: string;
+
+  /**
+   * 理赔说明步骤列表
+   */
+  claimInstructions?: ClaimStepItem[];
+
 }
 
 export interface InsuranceProductConfigForm extends BaseEntity {
@@ -151,6 +161,16 @@ export interface InsuranceProductConfigForm extends BaseEntity {
    */
   version?: number;
 
+  /**
+   * 产品特点
+   */
+  productFeatures?: string;
+
+  /**
+   * 理赔说明步骤列表
+   */
+  claimInstructions?: ClaimStepItem[];
+
 }
 
 export interface InsuranceProductConfigQuery extends PageQuery {
@@ -204,4 +224,13 @@ export interface InsuranceProductConfigQuery extends PageQuery {
    * 日期范围参数
    */
   params?: any;
+}
+
+/**
+ * 理赔说明步骤对象
+ */
+export interface ClaimStepItem {
+  title?: string;
+  content?: string;
+  sort?: number;
 }

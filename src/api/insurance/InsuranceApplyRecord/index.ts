@@ -61,3 +61,15 @@ export const delInsuranceApplyRecord = (id: string | number | Array<string | num
     method: 'delete'
   });
 };
+
+/**
+ * 审批/确认支付 (修改订单状态)
+ * @param data
+ */
+export const confirmPay = (data: InsuranceApplyRecordVO | InsuranceApplyRecordForm) => {
+  return request({
+    url: '/insurance/InsuranceApplyRecord/confirmPay',
+    method: 'post',
+    data: data
+  });
+};

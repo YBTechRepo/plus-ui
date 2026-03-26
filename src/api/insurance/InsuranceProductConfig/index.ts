@@ -61,3 +61,27 @@ export const delInsuranceProductConfig = (id: string | number | Array<string | n
     method: 'delete'
   });
 };
+
+// 🌟 注意：把 productConfig 改成严格匹配你后端的 InsuranceProductConfig
+export function getProductFull(id: string | number) {
+  return request({
+    url: '/insurance/InsuranceProductConfig/getFull/' + id, // 修改这里
+    method: 'get'
+  });
+}
+
+export function addProductFull(data: any) {
+  return request({
+    url: '/insurance/InsuranceProductConfig/saveFull', // 修改这里
+    method: 'post',
+    data: data
+  });
+}
+
+export function updateProductFull(data: any) {
+  return request({
+    url: '/insurance/InsuranceProductConfig/saveFull', // 修改这里
+    method: 'post',
+    data: data
+  });
+}
