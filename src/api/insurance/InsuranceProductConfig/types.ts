@@ -88,6 +88,10 @@ export interface InsuranceProductConfigVO {
    */
   claimInstructions?: ClaimStepItem[];
 
+  insureMode: number;
+
+  paymentMode: number;
+
 }
 
 export interface InsuranceProductConfigForm extends BaseEntity {
@@ -170,6 +174,10 @@ export interface InsuranceProductConfigForm extends BaseEntity {
    * 理赔说明步骤列表
    */
   claimInstructions?: ClaimStepItem[];
+
+  insureMode?: number;
+
+  paymentMode?: number;
 
 }
 

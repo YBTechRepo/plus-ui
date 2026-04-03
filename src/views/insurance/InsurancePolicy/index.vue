@@ -64,9 +64,9 @@
           <el-col :span="1.5">
             <el-button type="success" plain icon="Edit" :disabled="single" @click="handleUpdate()" v-hasPermi="['insurance:InsurancePolicy:edit']">修改</el-button>
           </el-col>
-          <el-col :span="1.5">
+          <!-- <el-col :span="1.5">
             <el-button type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete()" v-hasPermi="['insurance:InsurancePolicy:remove']">删除</el-button>
-          </el-col>
+          </el-col> -->
           <el-col :span="1.5">
             <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['insurance:InsurancePolicy:export']">导出</el-button>
           </el-col>
@@ -92,14 +92,14 @@
         <el-table-column label="产品编码" align="center" prop="productCode" />
         <el-table-column label="产品名称" align="center" prop="productName" />
         <!-- <el-table-column label="保单号" align="center" prop="policyNo" /> -->
-        
+
 
         <el-table-column label="业务人员姓名" align="center" prop="agentName" />
         <!-- <el-table-column label="业务人员id" align="center" prop="agentUserId" /> -->
         <!-- <el-table-column label="业务人员所属部门" align="center" prop="agentDeptId" /> -->
         <el-table-column label="保费" align="center" prop="premium" />
         <el-table-column label="保额" align="center" prop="amt" />
-        
+
         <el-table-column label="保单状态" align="center" prop="status">
           <template #default="scope">
             <dict-tag :options="insurance_policy_status" :value="scope.row.status"/>
@@ -137,7 +137,7 @@
             <dict-tag :options="insurance_commission_status" :value="scope.row.commissionStatus"/>
           </template>
         </el-table-column>
-        
+
         <!-- <el-table-column label="投保人性别" align="center" prop="applicantSex">
           <template #default="scope">
             <dict-tag :options="insurance_sex" :value="scope.row.applicantSex"/>
@@ -178,9 +178,9 @@
             <el-tooltip content="修改" placement="top">
               <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['insurance:InsurancePolicy:edit']"></el-button>
             </el-tooltip>
-            <el-tooltip content="删除" placement="top">
+            <!-- <el-tooltip content="删除" placement="top">
               <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['insurance:InsurancePolicy:remove']"></el-button>
-            </el-tooltip>
+            </el-tooltip> -->
           </template>
         </el-table-column>
       </el-table>

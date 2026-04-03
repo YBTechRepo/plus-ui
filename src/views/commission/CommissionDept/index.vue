@@ -170,12 +170,12 @@
             ></el-option>
           </el-select>
         </el-form-item>
-        <el-form-item label="乐观锁版本号" prop="version">
+        <!-- <el-form-item label="乐观锁版本号" prop="version">
           <el-input v-model="form.version" placeholder="请输入乐观锁版本号" />
         </el-form-item>
         <el-form-item label="删除标志" prop="delFlag">
           <el-input v-model="form.delFlag" placeholder="请输入删除标志" />
-        </el-form-item>
+        </el-form-item> -->
       </el-form>
       <template #footer>
         <div class="dialog-footer">

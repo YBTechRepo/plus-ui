@@ -151,6 +151,20 @@
                 </el-form-item>
               </el-col>
               <el-col :span="12">
+                <el-form-item label="投保模式" prop="product.insureMode">
+                  <el-select v-model="form.product.insureMode" placeholder="请选择投保模式" class="w-full">
+                    <el-option v-for="dict in insurance_product_insure_mode" :key="dict.value" :label="dict.label" :value="parseInt(dict.value)" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="支付模式" prop="product.paymentMode">
+                  <el-select v-model="form.product.paymentMode" placeholder="请选择支付模式" class="w-full">
+                    <el-option v-for="dict in insurance_product_payment_mode" :key="dict.value" :label="dict.label" :value="parseInt(dict.value)" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
                 <el-form-item label="产品状态" prop="product.status">
                   <el-select v-model="form.product.status" placeholder="请选择产品状态" class="w-full">
                     <el-option v-for="dict in insurance_product_status" :key="dict.value" :label="dict.label" :value="parseInt(dict.value)" />
@@ -294,16 +308,11 @@
             </el-alert>
             <el-button type="primary" plain icon="Plus" @click="addServiceFee" class="mb-2">新增费率记录</el-button>
             <el-table :data="serviceFeeList" border size="small">
-              <el-table-column label="服务费比例" width="340">
+              <el-table-column label="服务费比例" width="200">
                 <template #default="scope">
-                  <div style="display:flex;align-items:center;gap:12px">
-                    <el-slider
-                      v-model="scope.row.feeRatioDisplay"
-                      :min="0" :max="100" :step="0.5"
-                      show-tooltip
-                      style="flex:1"
-                    />
-                    <span style="min-width:48px;text-align:right;font-weight:bold">{{ scope.row.feeRatioDisplay }}%</span>
+                  <div style="display:flex;align-items:center;gap:6px;padding:4px 8px">
+                    <el-input-number v-model="scope.row.feeRatioDisplay" :min="0" :max="100" :step="1" controls-position="right" style="width:120px" />
+                    <span style="font-weight:bold">%</span>
                   </div>
                 </template>
               </el-table-column>
@@ -362,7 +371,24 @@ import {
 import { InsuranceProductConfigVO, InsuranceProductConfigQuery } from '@/api/insurance/InsuranceProductConfig/types';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
-const { insurance_product_type, insurance_product_mode, insurance_company, insurance_product_status } = toRefs<any>(proxy?.useDict('insurance_product_type', 'insurance_product_mode', 'insurance_company', 'insurance_product_status'));
+const {
+  insurance_product_type,
+  insurance_product_mode,
+  insurance_company,
+  insurance_product_status,
+  insurance_product_insure_mode,
+  insurance_product_payment_mode
+} = toRefs<any>(
+  proxy?.useDict(
+    'insurance_product_type',
+    'insurance_product_mode',
+    'insurance_company',
+    'insurance_product_status',
+    'insurance_product_insure_mode',
+    'insurance_product_payment_mode'
+  )
+);
+
 
 const InsuranceProductConfigList = ref<InsuranceProductConfigVO[]>([]);
 const buttonLoading = ref(false);
@@ -372,7 +398,6 @@ const ids = ref<Array<string | number>>([]);
 const single = ref(true);
 const multiple = ref(true);
 const total = ref(0);
-
 const queryFormRef = ref<ElFormInstance>();
 const InsuranceProductConfigFormRef = ref<ElFormInstance>();
 
@@ -399,6 +424,8 @@ const initFormData: any = {
     description: undefined,
     status: undefined,
     sort: 0,
+    insureMode: undefined,
+    paymentMode: undefined,
   },
   liabilityList: [],
   insureNotice: [],

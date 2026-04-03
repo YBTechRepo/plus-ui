@@ -79,6 +79,21 @@ export interface InsuranceApplyRecordVO {
    */
   version: number;
 
+  /**
+   * 净费出单保费
+   */
+  netPremium: number;
+
+  /**
+   * 投保模式 0-自投保 1-代投保
+   */
+  insureMode: number;
+
+  /**
+   * 支付模式 0-常规支付 1-余额代扣
+   */
+  paymentMode: number;
+
 }
 
 export interface InsuranceApplyRecordForm extends BaseEntity {
@@ -156,6 +171,21 @@ export interface InsuranceApplyRecordForm extends BaseEntity {
    * 乐观锁版本
    */
   version?: number;
+
+  /**
+   * 净费出单保费
+   */
+  netPremium?: number;
+
+  /**
+   * 投保模式 0-自投保 1-代投保
+   */
+  insureMode?: number;
+
+  /**
+   * 支付模式 0-常规支付 1-余额代扣
+   */
+  paymentMode?: number;
 
 }
 

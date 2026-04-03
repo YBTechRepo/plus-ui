@@ -124,17 +124,20 @@
           <span style="font-weight:bold;color:#606266">佣金费率时间段配置</span>
           <el-button type="primary" plain icon="Plus" size="small" @click="addRow">新增一行</el-button>
         </div>
+        <div v-if="currentServiceFee != null" style="color:#f56c6c;font-weight:bold;margin-bottom:8px;font-size:13px">
+          ⚠️ 当前产品服务费为 {{ (Number(currentServiceFee) * 100).toFixed(2) }}%，设置的佣金比例不应超过该数字。
+        </div>
         <el-alert type="info" :closable="false" class="mb-2">
           <template #title>
             费率变动时，请将旧记录的失效时间修改为变动前一天，再新增一条记录。时间段不允许重叠。
           </template>
         </el-alert>
         <el-table :data="commissionRows" border size="small">
-          <el-table-column label="佣金比例" min-width="260">
+          <el-table-column label="佣金比例" width="180">
             <template #default="scope">
-              <div style="display:flex;align-items:center;gap:8px;padding:4px 8px">
-                <el-slider v-model="scope.row.rateDisplay" :min="0" :max="100" :step="0.5" show-tooltip style="flex:1" />
-                <span style="min-width:52px;text-align:right;font-weight:bold">{{ scope.row.rateDisplay }}%</span>
+              <div style="display:flex;align-items:center;gap:6px;padding:4px 8px">
+                <el-input-number v-model="scope.row.rateDisplay" :min="0" :max="100" :step="1" controls-position="right" style="width:120px" />
+                <span style="font-weight:bold">%</span>
               </div>
             </template>
           </el-table-column>
@@ -223,12 +226,16 @@ const removeRow = (index: number) => {
   commissionRows.value.splice(index, 1);
 };
 
+/** 当前选中产品的服务费 (BigDecimal 0-1) */
+const currentServiceFee = ref<number | null>(null);
+
 /** 选中产品回填 */
 const handleProductChange = (selectedName: string) => {
   const product = productOptions.value.find(p => p.productName === selectedName);
   if (product) {
     dialogForm.value.productId = product.productId;
     dialogForm.value.productCode = product.productCode;
+    currentServiceFee.value = (product as any).serviceFee ?? null;
   }
 };
 
@@ -265,6 +272,7 @@ const getList = async () => {
 const cancel = () => {
   dialog.visible = false;
   commissionRows.value = [];
+  currentServiceFee.value = null;
   dialogForm.value = { id: undefined, productId: undefined, productCode: undefined, productName: undefined, status: undefined };
   CommissionFormRef.value?.resetFields();
 };
@@ -303,6 +311,10 @@ const handleUpdate = async (row?: InsuranceProductCommissionVO) => {
     productName: d.productName,
     status: d.status,
   };
+  // 从 productOptions 中查找对应的服务费（用 productId 精确匹配）
+  await loadProductOptions();
+  const matched = productOptions.value.find(p => String(p.productId) === String(d.productId));
+  currentServiceFee.value = matched ? (matched as any).serviceFee ?? null : null;
   // 解析 commissionConfig JSON → 填充费率行
   try {
     let cfg = d.commissionConfig;

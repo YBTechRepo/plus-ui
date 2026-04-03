@@ -85,3 +85,14 @@ export function updateProductFull(data: any) {
     data: data
   });
 }
+
+/**
+ * 获取产品服务费配置 (JSON 字符串)
+ * @param id 产品ID
+ */
+export function getServiceFeeConfig(id: string | number) {
+  return request({
+    url: '/insurance/InsuranceProductConfig/getServiceFeeConfig/' + id,
+    method: 'get'
+  });
+}

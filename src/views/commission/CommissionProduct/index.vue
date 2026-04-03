@@ -46,12 +46,12 @@
           <el-col :span="1.5">
             <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['commission:CommissionProduct:add']">新增</el-button>
           </el-col>
-          <!-- <el-col :span="1.5">
+          <el-col :span="1.5">
             <el-button type="success" plain icon="Edit" :disabled="single" @click="handleUpdate()" v-hasPermi="['commission:CommissionProduct:edit']">修改</el-button>
-          </el-col> -->
-          <!-- <el-col :span="1.5">
+          </el-col>
+          <el-col :span="1.5">
             <el-button type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete()" v-hasPermi="['commission:CommissionProduct:remove']">删除</el-button>
-          </el-col> -->
+          </el-col>
           <el-col :span="1.5">
             <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['commission:CommissionProduct:export']">导出</el-button>
           </el-col>

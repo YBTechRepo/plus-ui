@@ -27,9 +27,9 @@
           <!-- <el-col :span="1.5">
             <el-button type="success" plain icon="Edit" :disabled="single" @click="handleUpdate()" v-hasPermi="['insurance:InsuranceTenantProduct:edit']">修改</el-button>
           </el-col> -->
-          <!-- <el-col :span="1.5">
+          <el-col :span="1.5">
             <el-button type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete()" v-hasPermi="['insurance:InsuranceTenantProduct:remove']">删除</el-button>
-          </el-col> -->
+          </el-col>
           <!-- <el-col :span="1.5">
             <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['insurance:InsuranceTenantProduct:export']">导出</el-button>
           </el-col> -->
@@ -39,8 +39,8 @@
 
       <el-table v-loading="loading" border :data="InsuranceTenantProductList" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column label="ID" align="center" prop="id" v-if="true" />
-        <el-table-column label="产品ID" align="center" prop="productId" />
+        <!-- <el-table-column label="ID" align="center" prop="id" v-if="true" /> -->
+        <!-- <el-table-column label="产品ID" align="center" prop="productId" /> -->
         <el-table-column label="保险公司" align="center" prop="companyCode">
           <template #default="scope">
             <dict-tag :options="insurance_company" :value="scope.row.companyCode"/>
@@ -83,8 +83,11 @@
         <el-table-column label="自定义排序" align="center" prop="sort" />
         <!-- <el-table-column label="乐观锁版本" align="center" prop="version" /> -->
         <!-- <el-table-column label="删除标记" align="center" prop="delFlag" /> -->
-        <el-table-column label="操作" align="center" fixed="right"  class-name="small-padding fixed-width">
+        <el-table-column label="操作" align="center" fixed="right" min-width="160" class-name="small-padding fixed-width">
           <template #default="scope">
+            <el-tooltip content="查看服务费详情" placement="top">
+              <el-button link type="success" icon="Tickets" @click="handleViewServiceFee(scope.row)"></el-button>
+            </el-tooltip>
             <el-tooltip content="修改" placement="top">
               <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['insurance:InsuranceTenantProduct:edit']"></el-button>
             </el-tooltip>
@@ -99,73 +102,19 @@
     </el-card>
     <!-- 添加或修改产品库对话框 -->
     <el-dialog :title="dialog.title" v-model="dialog.visible" width="500px" append-to-body>
-      <el-form ref="InsuranceTenantProductFormRef" :model="form" :rules="rules" label-width="80px">
-        <el-form-item label="产品ID" prop="productId">
-          <el-input v-model="form.productId" placeholder="请输入产品ID" />
-        </el-form-item>
-        <el-form-item label="保险公司" prop="companyCode">
-          <el-select v-model="form.companyCode" placeholder="请选择保险公司">
-            <el-option
-                v-for="dict in insurance_company"
-                :key="dict.value"
-                :label="dict.label"
-                :value="dict.value"
-            ></el-option>
-          </el-select>
-        </el-form-item>
-        <el-form-item label="产品代码" prop="productCode">
-          <el-input v-model="form.productCode" placeholder="请输入产品代码" />
-        </el-form-item>
-        <el-form-item label="产品名称" prop="productName">
-          <el-input v-model="form.productName" placeholder="请输入产品名称" />
-        </el-form-item>
-        <el-form-item label="产品类型" prop="productType">
-          <el-select v-model="form.productType" placeholder="请选择产品类型">
-            <el-option
-                v-for="dict in insurance_product_type"
-                :key="dict.value"
-                :label="dict.label"
-                :value="dict.value"
-            ></el-option>
-          </el-select>
-        </el-form-item>
-        <el-form-item label="产品模式" prop="productMode">
-          <el-select v-model="form.productMode" placeholder="请选择产品模式">
-            <el-option
-                v-for="dict in insurance_product_mode"
-                :key="dict.value"
-                :label="dict.label"
-                :value="parseInt(dict.value)"
-            ></el-option>
-          </el-select>
-        </el-form-item>
-        <el-form-item label="最低保费" prop="minPremium">
-          <el-input v-model="form.minPremium" placeholder="请输入最低保费" />
-        </el-form-item>
-        <el-form-item label="产品头图" prop="img">
-          <el-input v-model="form.img" placeholder="请输入产品头图" />
-        </el-form-item>
-        <el-form-item label="产品特点" prop="description">
-            <el-input v-model="form.description" type="textarea" placeholder="请输入内容" />
-        </el-form-item>
+      <el-form ref="InsuranceTenantProductFormRef" :model="form" :rules="rules" label-width="90px">
         <el-form-item label="上架状态" prop="status">
-          <el-select v-model="form.status" placeholder="请选择上架状态">
+          <el-select v-model="form.status" placeholder="请选择上架状态" style="width:100%">
             <el-option
-                v-for="dict in insurance_product_status"
-                :key="dict.value"
-                :label="dict.label"
-                :value="dict.value"
+              v-for="dict in insurance_product_status"
+              :key="dict.value"
+              :label="dict.label"
+              :value="dict.value"
             ></el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="自定义排序" prop="sort">
-          <el-input v-model="form.sort" placeholder="请输入自定义排序" />
-        </el-form-item>
-        <el-form-item label="乐观锁版本" prop="version">
-          <el-input v-model="form.version" placeholder="请输入乐观锁版本" />
-        </el-form-item>
-        <el-form-item label="删除标记" prop="delFlag">
-          <el-input v-model="form.delFlag" placeholder="请输入删除标记" />
+          <el-input-number v-model="form.sort" :min="0" controls-position="right" style="width:100%" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -177,7 +126,7 @@
     </el-dialog>
 
     <!-- 选择产品弹窗 (取代原本的新增) -->
-    <el-dialog title="选择产品" v-model="productSelectDialog.visible" width="800px" append-to-body>
+    <el-dialog title="选择产品" v-model="productSelectDialog.visible" width="1200px" append-to-body>
       <el-form :model="productSelectQueryParams" ref="productSelectQueryRef" :inline="true" v-show="true">
         <el-form-item label="产品名称" prop="productName">
           <el-input v-model="productSelectQueryParams.productName" placeholder="请输入产品名称" clearable @keyup.enter="handleProductSelectQuery" />
@@ -208,6 +157,27 @@
           </template>
         </el-table-column>
         <el-table-column label="最低保费" align="center" prop="minPremium" />
+        <el-table-column label="服务费" align="center" min-width="120">
+          <template #default="scope">
+            <template v-if="scope.row.serviceFeeConfig">
+              <el-tag
+                v-for="(item, idx) in parseServiceFeeConfig(scope.row.serviceFeeConfig)"
+                :key="idx"
+                size="small"
+                type="success"
+                class="mr-1"
+              >
+                {{ (Number(item.feeRatio) * 100).toFixed(1) }}%
+              </el-tag>
+            </template>
+            <span v-else style="color:#999">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="净费出单" align="center" width="100">
+          <template #default="scope">
+            <span>{{ calcNetPremium(scope.row.minPremium, scope.row.serviceFeeConfig) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="产品图" align="center" prop="imgUrlUrl" show-overflow-tooltip>
           <template #default="scope">
             <image-preview :src="scope.row.imgUrlUrl" :width="50" :height="50"/>
@@ -224,11 +194,38 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 服务费详情弹窗 -->
+    <el-dialog title="服务费配置详情" v-model="serviceFeeDialog.visible" width="700px" append-to-body>
+      <div v-if="serviceFeeDialog.loading" style="text-align:center;padding:30px">
+        <el-icon class="is-loading" size="30"><Loading /></el-icon>
+        <div style="margin-top:8px;color:#999">加载中...</div>
+      </div>
+      <template v-else>
+        <div style="margin-bottom:12px">
+          <span style="font-weight:600">产品名称：</span>{{ serviceFeeDialog.productName }}
+        </div>
+        <el-table :data="serviceFeeDialog.configList" border stripe size="small">
+          <el-table-column label="服务费比例" align="center">
+            <template #default="scope">
+              <el-tag type="success">{{ (Number(scope.row.feeRatio) * 100).toFixed(2) }}%</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="生效开始时间" align="center" prop="effectiveStartTime" />
+          <el-table-column label="生效结束时间" align="center" prop="effectiveEndTime" />
+        </el-table>
+        <el-empty v-if="serviceFeeDialog.configList.length === 0" description="暂无服务费配置" />
+      </template>
+      <template #footer>
+        <el-button @click="serviceFeeDialog.visible = false">关 闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup name="InsuranceTenantProduct" lang="ts">
 import { listInsuranceTenantProduct, getInsuranceTenantProduct, delInsuranceTenantProduct, addInsuranceTenantProduct, updateInsuranceTenantProduct, addInsuranceTenantProductBatch, listMarketProduct } from '@/api/insurance/InsuranceTenantProduct';
+import { getServiceFeeConfig } from '@/api/insurance/InsuranceProductConfig';
 import type { InsuranceProductConfigVO } from '@/api/insurance/InsuranceProductConfig/types';
 import { InsuranceTenantProductVO, InsuranceTenantProductQuery, InsuranceTenantProductForm } from '@/api/insurance/InsuranceTenantProduct/types';
 
@@ -236,7 +233,54 @@ const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const { insurance_product_type, insurance_product_mode, insurance_company, insurance_product_status } = toRefs<any>(proxy?.useDict('insurance_product_type', 'insurance_product_mode', 'insurance_company', 'insurance_product_status'));
 
 const InsuranceTenantProductList = ref<InsuranceTenantProductVO[]>([]);
+
+/** 解析服务费配置 JSON（用于产品选择弹窗展示） */
+const parseServiceFeeConfig = (raw: any): any[] => {
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+/** 计算净费出单 = minPremium × (1 - feeRatio)，取第一条费率 */
+const calcNetPremium = (minPremium: any, serviceFeeConfig: any): string => {
+  const fees = parseServiceFeeConfig(serviceFeeConfig);
+  if (!minPremium || fees.length === 0) return '-';
+  const feeRatio = Number(fees[0].feeRatio);
+  const net = Number(minPremium) * (1 - feeRatio);
+  return net.toFixed(2);
+};
+
 const buttonLoading = ref(false);
+
+/** 服务费详情弹窗状态 */
+const serviceFeeDialog = reactive({
+  visible: false,
+  loading: false,
+  productName: '',
+  configList: [] as any[]
+});
+
+/** 查看服务费详情 */
+const handleViewServiceFee = async (row: InsuranceTenantProductVO) => {
+  serviceFeeDialog.visible = true;
+  serviceFeeDialog.loading = true;
+  serviceFeeDialog.productName = row.productName || '';
+  serviceFeeDialog.configList = [];
+  try {
+    const res = await getServiceFeeConfig(row.productId as string | number);
+    const raw = res.data;
+    if (raw) {
+      serviceFeeDialog.configList = typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : []);
+    }
+  } catch (e) {
+    serviceFeeDialog.configList = [];
+  } finally {
+    serviceFeeDialog.loading = false;
+  }
+};
+
 const loading = ref(true);
 const showSearch = ref(true);
 const ids = ref<Array<string | number>>([]);
