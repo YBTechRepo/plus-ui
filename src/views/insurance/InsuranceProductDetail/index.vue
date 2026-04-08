@@ -38,13 +38,13 @@
       <el-table v-loading="loading" border :data="InsuranceProductDetailList" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center" />
         <el-table-column label="主键ID" align="center" prop="id" v-if="true" />
-        <el-table-column label="产品ID (关联 biz_insurance_product.id)" align="center" prop="productId" />
-        <el-table-column label="产品特点图 (JSON数组：["url1", "url2"])" align="center" prop="featureImages" />
-        <el-table-column label="理赔流程图 (JSON数组：["url1"])" align="center" prop="claimImages" />
-        <el-table-column label="投保须知 (JSON对象数组：[{"title":"", "content":"", "sort":1}])" align="center" prop="insureNotice" />
-        <el-table-column label="条款须知文件 (JSON对象数组：[{"clauseName":"", "fileUrl":"", "sort":1}])" align="center" prop="clauseFiles" />
+        <el-table-column label="产品ID" align="center" prop="productId" />
+        <el-table-column label="产品特点图" align="center" prop="featureImages" />
+        <el-table-column label="理赔流程图" align="center" prop="claimImages" />
+        <el-table-column label="投保须知" align="center" prop="insureNotice" />
+        <el-table-column label="条款须知文件" align="center" prop="clauseFiles" />
         <el-table-column label="乐观锁版本" align="center" prop="version" />
-        <el-table-column label="删除标记(0-未删除 1-删除)" align="center" prop="delFlag" />
+        <el-table-column label="删除标记" align="center" prop="delFlag" />
         <el-table-column label="操作" align="center" fixed="right"  class-name="small-padding fixed-width">
           <template #default="scope">
             <el-tooltip content="修改" placement="top">
@@ -172,10 +172,10 @@ const resetQuery = () => {
 
 /** 多选框选中数据 */
 const handleSelectionChange = (selection: InsuranceProductDetailVO[]) => {
-  ids.value = selection.map(item => item.id);
-  single.value = selection.length != 1;
+  ids.value = selection.map((item) => item.id);
+  single.value = selection.length !== 1;
   multiple.value = !selection.length;
-}
+};
 
 /** 新增按钮操作 */
 const handleAdd = () => {
@@ -200,9 +200,9 @@ const submitForm = () => {
     if (valid) {
       buttonLoading.value = true;
       if (form.value.id) {
-        await updateInsuranceProductDetail(form.value).finally(() =>  buttonLoading.value = false);
+        await updateInsuranceProductDetail(form.value).finally(() => (buttonLoading.value = false));
       } else {
-        await addInsuranceProductDetail(form.value).finally(() =>  buttonLoading.value = false);
+        await addInsuranceProductDetail(form.value).finally(() => (buttonLoading.value = false));
       }
       proxy?.$modal.msgSuccess("操作成功");
       dialog.visible = false;

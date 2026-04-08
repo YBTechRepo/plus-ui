@@ -60,4 +60,4 @@ directive(app);
 app.mount('#app');
 
 // 初始化开发者工具保护（仅生产环境）
-initDevToolsProtection();
+//initDevToolsProtection();

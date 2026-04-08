@@ -253,7 +253,7 @@
           </el-col>
           <el-col :span="12" v-if="form.userId == null || form.userId != useUserStore().userId">
             <el-form-item label="角色" prop="roleIds">
-              <el-select v-model="form.roleIds" filterable multiple placeholder="请选择">
+              <el-select v-model="form.roleIds" filterable placeholder="请选择">
                 <el-option
                   v-for="item in roleOptions"
                   :key="item.roleId"
@@ -655,7 +655,7 @@ const handleUpdate = async (row?: UserForm) => {
     new Map([...data.roles, ...data.user.roles].map(role => [role.roleId, role])).values()
   );
   form.value.postIds = data.postIds;
-  form.value.roleIds = data.roleIds;
+  form.value.roleIds = data.roleIds && data.roleIds.length > 0 ? data.roleIds[0] : undefined;
   form.value.password = '';
 };
 
@@ -663,16 +663,20 @@ const handleUpdate = async (row?: UserForm) => {
 const submitForm = () => {
   userFormRef.value?.validate(async (valid: boolean) => {
     if (valid) {
-      if (form.value.userId) {
+      const data = { ...form.value };
+      if (data.roleIds && !Array.isArray(data.roleIds)) {
+        data.roleIds = [data.roleIds];
+      }
+      if (data.userId) {
         // 自己编辑自己的情况下 不允许编辑角色部门岗位
-        if (form.value.userId == useUserStore().userId) {
-          form.value.roleIds = null;
-          form.value.deptId = null;
-          form.value.postIds = null;
+        if (data.userId == useUserStore().userId) {
+          data.roleIds = null;
+          data.deptId = null;
+          data.postIds = null;
         }
-        await api.updateUser(form.value);
+        await api.updateUser(data);
       } else {
-        await api.addUser(form.value);
+        await api.addUser(data);
       }
       proxy?.$modal.msgSuccess('操作成功');
       dialog.visible = false;

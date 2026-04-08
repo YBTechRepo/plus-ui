@@ -120,11 +120,11 @@
     <!-- 添加或修改机构费率配置对话框 -->
     <el-dialog :title="dialog.title" v-model="dialog.visible" width="500px" append-to-body>
       <el-form ref="CommissionDeptFormRef" :model="form" :rules="rules" label-width="120px">
-        <el-form-item label="部门ID" prop="deptId">
+        <!-- <el-form-item label="部门ID" prop="deptId">
           <el-input v-model="form.deptId" placeholder="请输入部门ID" />
-        </el-form-item>
+        </el-form-item> -->
         <el-form-item label="部门名称" prop="deptName">
-          <el-input v-model="form.deptName" placeholder="请输入部门名称" />
+          <el-input v-model="form.deptName" placeholder="登录用户所属部门" readonly />
         </el-form-item>
         <el-form-item label="项目负责人比例" prop="projectRatioDisplay">
           <div style="display:flex;align-items:center;width:100%">
@@ -190,6 +190,7 @@
 <script setup name="CommissionDept" lang="ts">
 import { listCommissionDept, getCommissionDept, delCommissionDept, addCommissionDept, updateCommissionDept } from '@/api/commission/CommissionDept';
 import { CommissionDeptVO, CommissionDeptQuery, CommissionDeptForm } from '@/api/commission/CommissionDept/types';
+import { getInfo } from '@/api/login';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const { insurance_product_commission_status } = toRefs<any>(proxy?.useDict('insurance_product_commission_status'));
@@ -336,8 +337,14 @@ const handleSelectionChange = (selection: CommissionDeptVO[]) => {
 }
 
 /** 新增按钮操作 */
-const handleAdd = () => {
+const handleAdd = async () => {
   reset();
+  const res: any = await getInfo();
+  if (res.data && res.data.user) {
+    const { deptId, deptName } = res.data.user;
+    form.value.deptId = deptId;
+    form.value.deptName = deptName;
+  }
   dialog.visible = true;
   dialog.title = "添加机构费率配置";
 }

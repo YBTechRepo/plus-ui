@@ -30,14 +30,14 @@ const processResponse = async (res: any) => {
   }
   ElMessage.success(res.msg);
   setTimeout(() => {
-    location.href = import.meta.env.VITE_APP_CONTEXT_PATH + 'index';
+    location.href = (import.meta.env.VITE_APP_CONTEXT_PATH || '') + '/index';
   }, 2000);
 };
 
 const handleError = (error: any) => {
   ElMessage.error(error.message);
   setTimeout(() => {
-    location.href = import.meta.env.VITE_APP_CONTEXT_PATH + 'index';
+    location.href = (import.meta.env.VITE_APP_CONTEXT_PATH || '') + '/index';
   }, 2000);
 };
 
