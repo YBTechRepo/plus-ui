@@ -109,6 +109,21 @@ export interface CommissionRecordVO {
    */
   projectUserName: string;
 
+  /**
+   * 业务员佣金发放状态 (1-正常发放，2-净费已前置抵扣)
+   */
+  salesStatus: number;
+
+  /**
+   * 团队长津贴发放状态 (1-正常发放，2-净费已前置抵扣)
+   */
+  teamStatus: number;
+
+  /**
+   * 总负责人津贴发放状态 (1-正常发放，2-净费已前置抵扣)
+   */
+  projectStatus: number;
+
 }
 
 export interface CommissionRecordForm extends BaseEntity {
@@ -216,6 +231,21 @@ export interface CommissionRecordForm extends BaseEntity {
    * 总负责人姓名
    */
   projectUserName?: string;
+
+  /**
+   * 业务员佣金发放状态 (1-正常发放，2-净费已前置抵扣)
+   */
+  salesStatus?: number;
+
+  /**
+   * 团队长津贴发放状态 (1-正常发放，2-净费已前置抵扣)
+   */
+  teamStatus?: number;
+
+  /**
+   * 总负责人津贴发放状态 (1-正常发放，2-净费已前置抵扣)
+   */
+  projectStatus?: number;
 
 }
 

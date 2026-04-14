@@ -7,30 +7,33 @@
             <el-form-item label="订单号" prop="orderNo">
               <el-input v-model="queryParams.orderNo" placeholder="请输入订单号" clearable @keyup.enter="handleQuery" />
             </el-form-item>
-            <el-form-item label="产品编码" prop="productCode">
-              <el-input v-model="queryParams.productCode" placeholder="请输入产品编码" clearable @keyup.enter="handleQuery" />
-            </el-form-item>
             <el-form-item label="产品名称" prop="productName">
               <el-input v-model="queryParams.productName" placeholder="请输入产品名称" clearable @keyup.enter="handleQuery" />
             </el-form-item>
             <el-form-item label="业务员姓名" prop="agentName">
               <el-input v-model="queryParams.agentName" placeholder="请输入业务员姓名" clearable @keyup.enter="handleQuery" />
             </el-form-item>
-            <el-form-item label="客户姓名" prop="customerName">
-              <el-input v-model="queryParams.customerName" placeholder="请输入客户姓名" clearable @keyup.enter="handleQuery" />
-            </el-form-item>
-            <el-form-item label="客户手机号" prop="customerMobile">
-              <el-input v-model="queryParams.customerMobile" placeholder="请输入客户手机号" clearable @keyup.enter="handleQuery" />
-            </el-form-item>
-            <el-form-item label="订单状态" prop="status">
-              <el-select v-model="queryParams.status" placeholder="请选择订单状态" clearable>
+            <!-- <el-form-item label="订单状态" prop="status">
+              <el-select v-model="queryParams.status" placeholder="请选择订单状态" clearable style="width: 130px">
                 <el-option v-for="dict in insurance_apply_status" :key="dict.value" :label="dict.label" :value="dict.value" />
               </el-select>
-            </el-form-item>
-            <el-form-item label="结算状态" prop="commissionStatus">
-              <el-select v-model="queryParams.commissionStatus" placeholder="请选择结算状态" clearable>
-                <el-option v-for="dict in insurance_commission_status" :key="dict.value" :label="dict.label" :value="dict.value" />
-              </el-select>
+            </el-form-item> -->
+            <el-form-item label="创建日期">
+              <el-date-picker
+                v-model="queryParams.params.beginTime"
+                type="date"
+                value-format="YYYY-MM-DD"
+                placeholder="开始日期"
+                style="width: 130px"
+              />
+              <span class="mx-1">-</span>
+              <el-date-picker
+                v-model="queryParams.params.endTime"
+                type="date"
+                value-format="YYYY-MM-DD"
+                placeholder="结束日期"
+                style="width: 130px"
+              />
             </el-form-item>
             <el-form-item>
               <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
@@ -45,7 +48,7 @@
       <template #header>
         <el-row :gutter="10" class="mb8">
           <el-col :span="1.5">
-            <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['insurance:InsuranceApplyRecord:export']"
+            <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['insurance:insuranceProxyOrder:export']"
               >导出</el-button
             >
           </el-col>
@@ -53,46 +56,37 @@
         </el-row>
       </template>
 
-      <el-table v-loading="loading" border :data="InsuranceApplyRecordList" @selection-change="handleSelectionChange">
-        <el-table-column type="selection" width="55" align="center" />
-        <el-table-column label="订单号" align="center" prop="orderNo" width="250">
+      <el-table v-loading="loading" border :data="insuranceProxyOrderList">
+        <el-table-column type="index" label="序号" width="60" align="center" />
+        <el-table-column label="订单号" align="center" prop="orderNo" width="300">
           <template #default="scope">
             <el-link type="primary" @click="openDetailDrawer(scope.row)">{{ scope.row.orderNo }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column label="产品编码" align="center" prop="productCode" width="140" />
-        <el-table-column label="产品名称" align="center" prop="productName" width="200" show-overflow-tooltip />
-        <el-table-column label="业务员姓名" align="center" prop="agentName" width="120" />
-        <el-table-column label="客户姓名" align="center" prop="customerName" width="120" />
-        <el-table-column label="客户手机号" align="center" prop="customerMobile" width="120" />
-        <el-table-column label="登记保费" align="center" prop="premium" width="120" />
+        <el-table-column label="产品名称" align="center" prop="productName" width="300" show-overflow-tooltip />
+        <el-table-column label="业务员姓名" align="center" prop="agentName" width="150" />
+        <el-table-column label="登记保费" align="center" prop="premium" width="150" />
+        <el-table-column label="净费" align="center" prop="netPremium" width="150" />
         <el-table-column label="订单状态" align="center" prop="status" width="120">
           <template #default="scope">
             <dict-tag :options="insurance_apply_status" :value="scope.row.status" />
           </template>
         </el-table-column>
-        <el-table-column label="结算状态" align="center" prop="commissionStatus" width="120">
+        <!-- <el-table-column label="结算状态" align="center" prop="commissionStatus" width="120">
           <template #default="scope">
             <dict-tag :options="insurance_commission_status" :value="scope.row.commissionStatus" />
           </template>
-        </el-table-column>
-        <el-table-column label="创建时间" align="center" prop="createTime" width="120">
+        </el-table-column> -->
+        <el-table-column label="创建时间" align="center" prop="createTime" width="150">
           <template #default="scope">
             <span>{{ parseTime(scope.row.createTime, '{y}-{m}-{d}') }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" align="center" fixed="right" min-width="160" class-name="small-padding fixed-width">
+        <el-table-column label="操作" align="center" fixed="right" min-width="100">
           <template #default="scope">
-            <el-button link type="primary" icon="View" @click="openDetailDrawer(scope.row)">详情</el-button>
-            <el-button
-              link
-              type="primary"
-              icon="Check"
-              :disabled="scope.row.status == 0"
-              @click="handleApprove(scope.row)"
-              v-hasPermi="['insurance:InsuranceApplyRecord:edit']"
-              >审批</el-button
-            >
+            <el-tooltip content="查看详情" placement="top">
+              <el-button link type="primary" icon="View" @click="openDetailDrawer(scope.row)">查看详情</el-button>
+            </el-tooltip>
           </template>
         </el-table-column>
       </el-table>
@@ -116,10 +110,11 @@
       </template>
 
       <div v-loading="detailDrawer.loading" class="p-4">
+        <!-- 视图 A：子单列表 (isBatch=1 时展示) -->
         <div v-if="detailDrawer.viewType === 'SUB_LIST'">
           <el-table border :data="detailDrawer.list" style="width: 100%">
             <el-table-column type="index" label="序号" width="55" align="center" />
-            <el-table-column label="子单号" align="center" prop="orderNo" width="300">
+            <el-table-column label="子单号" align="center" prop="orderNo" width="350">
               <template #default="scope">
                 <el-link type="primary" @click="fetchPersonDetail(scope.row.orderNo)">{{ scope.row.orderNo }}</el-link>
               </template>
@@ -139,8 +134,10 @@
           </el-table>
         </div>
 
+        <!-- 视图 B：个人详情 (isBatch=0 或点击子单后展示) -->
         <div v-else-if="detailDrawer.viewType === 'PERSON_DETAIL'">
           <el-row :gutter="20">
+            <!-- 投保人信息 -->
             <el-col :span="12">
               <el-descriptions title="投保人信息" :column="1" border>
                 <el-descriptions-item label="姓名">{{ detailDrawer.personDetail.appName }}</el-descriptions-item>
@@ -152,6 +149,7 @@
                 <el-descriptions-item label="证件号">{{ detailDrawer.personDetail.appCertNo }}</el-descriptions-item>
               </el-descriptions>
             </el-col>
+            <!-- 被保人信息 -->
             <el-col :span="12">
               <el-descriptions title="被保人信息" :column="1" border>
                 <el-descriptions-item label="姓名">{{ detailDrawer.personDetail.insuredName }}</el-descriptions-item>
@@ -174,29 +172,12 @@
         </div>
       </div>
     </el-drawer>
-
-    <!-- 审批/修改状态对话框 -->
-    <el-dialog :title="approveDialog.title" v-model="approveDialog.visible" width="400px" append-to-body>
-      <el-form ref="ApproveFormRef" :model="approveForm" :rules="approveRules" label-width="100px">
-        <el-form-item label="订单状态" prop="status">
-          <el-select v-model="approveForm.status" placeholder="请选择订单状态" style="width: 100%">
-            <el-option v-for="dict in insurance_apply_status" :key="dict.value" :label="dict.label" :value="parseInt(dict.value)" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <div class="dialog-footer">
-          <el-button :loading="approveButtonLoading" type="primary" @click="submitApprove">确 定</el-button>
-          <el-button @click="cancelApprove">取 消</el-button>
-        </div>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
-<script setup name="InsuranceApplyRecord" lang="ts">
-import { listInsuranceApplyRecord, getInsuranceApplyRecord, confirmPay } from '@/api/insurance/InsuranceApplyRecord';
-import { InsuranceApplyRecordVO, InsuranceApplyRecordQuery, InsuranceApplyRecordForm } from '@/api/insurance/InsuranceApplyRecord/types';
+<script setup name="InsuranceProxyOrder" lang="ts">
+import { listInsuranceProxyOrder } from '@/api/insurance/insuranceProxyOrder';
+import { InsuranceProxyOrderVO, InsuranceProxyOrderQuery } from '@/api/insurance/insuranceProxyOrder/types';
 import request from '@/utils/request';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
@@ -204,47 +185,39 @@ const { insurance_apply_status, insurance_commission_status, insurance_id_type, 
   proxy?.useDict('insurance_apply_status', 'insurance_commission_status', 'insurance_id_type', 'insurance_relationship_to_insured')
 );
 
-const InsuranceApplyRecordList = ref<InsuranceApplyRecordVO[]>([]);
+const insuranceProxyOrderList = ref<InsuranceProxyOrderVO[]>([]);
 const loading = ref(true);
 const showSearch = ref(true);
 const total = ref(0);
 
 const queryFormRef = ref<ElFormInstance>();
 
-// 审批用的表单和数据
-const ApproveFormRef = ref<ElFormInstance>();
-const approveDialog = reactive<DialogOption>({ visible: false, title: '审批订单记录' });
-const approveButtonLoading = ref(false);
-const approveForm = ref<any>({});
-const approveRules = {
-  status: [{ required: true, message: '请选择订单状态', trigger: 'change' }]
-};
-
-const data = reactive<PageData<InsuranceApplyRecordForm, InsuranceApplyRecordQuery>>({
+const data = reactive<PageData<any, InsuranceProxyOrderQuery>>({
   form: {},
   queryParams: {
     pageNum: 1,
     pageSize: 10,
     orderNo: undefined,
-    productCode: undefined,
     productName: undefined,
     agentName: undefined,
-    customerName: undefined,
-    customerMobile: undefined,
     status: undefined,
-    commissionStatus: undefined,
-    params: {}
+    // 固定过滤：代投保模式
+    insureMode: 1,
+    params: {
+      beginTime: undefined,
+      endTime: undefined
+    }
   },
   rules: {}
 });
 
 const { queryParams } = toRefs(data);
 
-/** 查询投保记录列表 */
+/** 查询代投保订单列表 */
 const getList = async () => {
   loading.value = true;
-  const res = await listInsuranceApplyRecord(queryParams.value);
-  InsuranceApplyRecordList.value = res.rows;
+  const res = await listInsuranceProxyOrder(queryParams.value);
+  insuranceProxyOrderList.value = res.rows;
   total.value = res.total;
   loading.value = false;
 };
@@ -258,52 +231,13 @@ const handleQuery = () => {
 /** 重置按钮操作 */
 const resetQuery = () => {
   queryFormRef.value?.resetFields();
+  queryParams.value.params = { beginTime: undefined, endTime: undefined };
   handleQuery();
-};
-
-/** 多选框选中数据 */
-const handleSelectionChange = (selection: InsuranceApplyRecordVO[]) => {
-  // 保持 RUOYI 默认提供的选择逻辑，如果后续需要导出勾选项会用到
-};
-
-/** 审批按钮打开弹窗 */
-const handleApprove = (row: InsuranceApplyRecordVO) => {
-  approveForm.value = { ...row };
-  approveDialog.visible = true;
-};
-
-/** 取消审批弹窗 */
-const cancelApprove = () => {
-  approveDialog.visible = false;
-  ApproveFormRef.value?.resetFields();
-};
-
-/** 提交审批调用 confirmPay 接口 */
-const submitApprove = () => {
-  ApproveFormRef.value?.validate(async (valid: boolean) => {
-    if (valid) {
-      approveButtonLoading.value = true;
-      try {
-        await confirmPay(approveForm.value);
-        proxy?.$modal.msgSuccess('审批成功');
-        approveDialog.visible = false;
-        await getList();
-      } finally {
-        approveButtonLoading.value = false;
-      }
-    }
-  });
 };
 
 /** 导出按钮操作 */
 const handleExport = () => {
-  proxy?.download(
-    'insurance/InsuranceApplyRecord/export',
-    {
-      ...queryParams.value
-    },
-    `InsuranceApplyRecord_${new Date().getTime()}.xlsx`
-  );
+  proxy?.download('insurance/insuranceProxyOrder/export', { ...queryParams.value }, `代投保订单_${new Date().getTime()}.xlsx`);
 };
 
 // ===================== 详情下钻逻辑 =====================
@@ -311,10 +245,10 @@ const detailDrawer = reactive({
   visible: false,
   loading: false,
   viewType: 'SUB_LIST' as 'SUB_LIST' | 'PERSON_DETAIL',
-  isFromBatch: false,
+  isFromBatch: false, // 标记是否是从批次列表进入详情的
   currentOrderNo: '',
-  list: [] as any[],
-  personDetail: {} as any
+  list: [] as any[], // 子单列表
+  personDetail: {} as any // 个人明细
 });
 
 const drawerTitle = computed(() => {
@@ -324,22 +258,26 @@ const drawerTitle = computed(() => {
   return `保单人员明细 - ${detailDrawer.personDetail.orderNo || detailDrawer.currentOrderNo}`;
 });
 
-const openDetailDrawer = async (row: InsuranceApplyRecordVO) => {
+/** 打开详情主入口 */
+const openDetailDrawer = async (row: InsuranceProxyOrderVO) => {
   detailDrawer.currentOrderNo = row.orderNo;
   detailDrawer.visible = true;
   detailDrawer.loading = true;
 
   if (row.isBatch === 1) {
+    // 场景 A: 批量主单 -> 展示清单
     detailDrawer.viewType = 'SUB_LIST';
     detailDrawer.isFromBatch = true;
     await fetchSubOrders(row.orderNo);
   } else {
+    // 场景 B: 普通单 (isBatch=0) -> 直接展示个人
     detailDrawer.viewType = 'PERSON_DETAIL';
     detailDrawer.isFromBatch = false;
     await fetchPersonDetail(row.orderNo);
   }
 };
 
+/** 获取批次下的子单列表 */
 const fetchSubOrders = async (batchNo: string) => {
   detailDrawer.loading = true;
   try {
@@ -354,6 +292,7 @@ const fetchSubOrders = async (batchNo: string) => {
   }
 };
 
+/** 获取单人的详细投被保人信息 */
 const fetchPersonDetail = async (orderNo: string) => {
   detailDrawer.loading = true;
   try {
@@ -369,6 +308,7 @@ const fetchPersonDetail = async (orderNo: string) => {
   }
 };
 
+/** 返回批次列表 */
 const backToBatchList = () => {
   detailDrawer.viewType = 'SUB_LIST';
 };

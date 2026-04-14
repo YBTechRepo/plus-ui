@@ -1,4 +1,4 @@
-export interface InsuranceApplyRecordVO {
+export interface InsuranceProxyOrderVO {
   /**
    * id
    */
@@ -55,6 +55,11 @@ export interface InsuranceApplyRecordVO {
   premium: number;
 
   /**
+   * 净费出单保费
+   */
+  netPremium: number;
+
+  /**
    * 订单状态
    */
   status: number;
@@ -80,33 +85,33 @@ export interface InsuranceApplyRecordVO {
   version: number;
 
   /**
-   * 净费出单保费
-   */
-  netPremium: number;
-
-  /**
-   * 投保模式 0-自投保 1-代投保
+   * 投保模式
    */
   insureMode: number;
 
   /**
-   * 支付模式 0-常规支付 1-余额代扣
+   * 支付模式
    */
   paymentMode: number;
 
   /**
-   * 是否批量单：0-普通单 1-批次主单 2-批量子单
+   * 支付时间
+   */
+  payTime: string;
+
+  /**
+   * 是否批量单
    */
   isBatch: number;
 
   /**
-   * 所属批次单号（子单指向主单）
+   * 所属批次单号
    */
   batchOrderNo: string;
 
 }
 
-export interface InsuranceApplyRecordForm extends BaseEntity {
+export interface InsuranceProxyOrderForm extends BaseEntity {
   /**
    * id
    */
@@ -163,6 +168,11 @@ export interface InsuranceApplyRecordForm extends BaseEntity {
   premium?: number;
 
   /**
+   * 净费出单保费
+   */
+  netPremium?: number;
+
+  /**
    * 订单状态
    */
   status?: number;
@@ -183,32 +193,33 @@ export interface InsuranceApplyRecordForm extends BaseEntity {
   version?: number;
 
   /**
-   * 净费出单保费
-   */
-  netPremium?: number;
-
-  /**
-   * 投保模式 0-自投保 1-代投保
+   * 投保模式
    */
   insureMode?: number;
 
   /**
-   * 支付模式 0-常规支付 1-余额代扣
+   * 支付模式
    */
   paymentMode?: number;
 
   /**
-   * 是否批量单：0-普通单 1-批次主单 2-批量子单
+   * 支付时间
+   */
+  payTime?: string;
+
+  /**
+   * 是否批量单
    */
   isBatch?: number;
 
   /**
-   * 所属批次单号（子单指向主单）
+   * 所属批次单号
    */
   batchOrderNo?: string;
+
 }
 
-export interface InsuranceApplyRecordQuery extends PageQuery {
+export interface InsuranceProxyOrderQuery extends PageQuery {
 
   /**
    * 订单号
@@ -249,6 +260,11 @@ export interface InsuranceApplyRecordQuery extends PageQuery {
    * 结算状态
    */
   commissionStatus?: number;
+
+  /**
+   * 投保模式（固定为1代表代投保）
+   */
+  insureMode?: number;
 
   /**
    * 日期范围参数
