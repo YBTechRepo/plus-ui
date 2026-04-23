@@ -11,9 +11,12 @@ export interface TenantVO extends BaseEntity {
   intro: string;
   remark: string;
   packageId: string | number;
+  roleTemplateId?: string | number;
   expireTime: string;
   accountCount: number;
   status: string;
+  leaderName?: string;
+  leaderPhone?: string;
 }
 
 export interface TenantQuery extends PageQuery {
@@ -40,7 +43,11 @@ export interface TenantForm {
   intro: string;
   remark: string;
   packageId: string | number;
+  roleTemplateId?: string | number;
   expireTime: string;
   accountCount: number;
   status: string;
+  leaderName?: string;
+  leaderPhone?: string;
+  leaderPassword?: string;
 }

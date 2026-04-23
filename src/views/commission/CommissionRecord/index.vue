@@ -42,47 +42,48 @@
         <el-table-column type="selection" width="55" align="center" />
         <!-- <el-table-column label="主键ID" align="center" prop="id" v-if="true" /> -->
         <!-- <el-table-column label="关联保单ID" align="center" prop="policyId" /> -->
-        <el-table-column label="保单号" align="center" prop="policyNo" />
-        <!-- <el-table-column label="产品ID" align="center" prop="productId" /> -->
-        <el-table-column label="佣金计算基数" align="center" prop="commissionBase" width="120" />
-        <el-table-column label="业务员实发金额" align="center" prop="salesAmount" width="120" />
-        <el-table-column label="团队长实发金额" align="center" prop="teamAmount" width="120" />
-        <el-table-column label="总负责人实发金额" align="center" prop="projectAmount" width="130" />
-        <el-table-column label="计算依据" align="center" prop="calcStrategy" width="120">
+        <el-table-column label="保单号" align="center" prop="policyNo" width="150" />
+        <el-table-column label="产品名称" align="center" prop="productName" width="150" />
+        <el-table-column label="实交保费" align="center" prop="premium" width="100" />
+        <el-table-column label="佣金计算基数" align="center" prop="commissionBase" width="100" />
+        <el-table-column label="业务员姓名" align="center" prop="salesUserName" width="100" />
+        <el-table-column label="团队长姓名" align="center" prop="teamUserName" width="100" />
+        <el-table-column label="总代理姓名" align="center" prop="projectUserName" width="100" />
+        <el-table-column label="业务员实发金额" align="center" prop="salesAmount" width="100" />
+        <el-table-column label="团队长实发金额" align="center" prop="teamAmount" width="100" />
+        <el-table-column label="总代理实发金额" align="center" prop="projectAmount" width="100" />
+        <el-table-column label="计算依据" align="center" prop="calcStrategy" width="150">
           <template #default="scope">
             <dict-tag :options="commission_calc_strategy" :value="scope.row.calcStrategy" />
           </template>
         </el-table-column>
 
-        <el-table-column label="业务佣金比例" align="center" prop="salesRatio" width="110">
+        <el-table-column label="业务佣金比例" align="center" prop="salesRatio" width="100">
           <template #default="scope">
             <span>{{ scope.row.salesRatio != null ? (Number(scope.row.salesRatio) * 100).toFixed(0) + '%' : '--' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="团队佣金比例" align="center" prop="teamRatio" width="110">
+        <el-table-column label="团队佣金比例" align="center" prop="teamRatio" width="100">
           <template #default="scope">
             <span>{{ scope.row.teamRatio != null ? (Number(scope.row.teamRatio) * 100).toFixed(0) + '%' : '--' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="总负责人佣金比例" align="center" prop="projectRatio" width="130">
+        <el-table-column label="总代理佣金比例" align="center" prop="projectRatio" width="100">
           <template #default="scope">
             <span>{{ scope.row.projectRatio != null ? (Number(scope.row.projectRatio) * 100).toFixed(0) + '%' : '--' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="业务员姓名" align="center" prop="salesUserName" width="100" />
-        <el-table-column label="团队负责人姓名" align="center" prop="teamUserName" width="120" />
-        <el-table-column label="总负责人姓名" align="center" prop="projectUserName" width="120" />
         <el-table-column label="业务员佣金发放状态" align="center" prop="salesStatus" width="150">
           <template #default="scope">
             <dict-tag :options="commission_pay_status" :value="scope.row.salesStatus" />
           </template>
         </el-table-column>
-        <el-table-column label="团队长津贴发放状态" align="center" prop="teamStatus" width="150">
+        <el-table-column label="团队收益发放状态" align="center" prop="teamStatus" width="150">
           <template #default="scope">
             <dict-tag :options="commission_pay_status" :value="scope.row.teamStatus" />
           </template>
         </el-table-column>
-        <el-table-column label="总负责人津贴发放状态" align="center" prop="projectStatus" width="160">
+        <el-table-column label="总代理收益发放状态" align="center" prop="projectStatus" width="150">
           <template #default="scope">
             <dict-tag :options="commission_pay_status" :value="scope.row.projectStatus" />
           </template>

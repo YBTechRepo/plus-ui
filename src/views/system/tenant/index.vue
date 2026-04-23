@@ -7,11 +7,11 @@
             <el-form-item label="租户编号" prop="tenantId">
               <el-input v-model="queryParams.tenantId" placeholder="请输入租户编号" clearable @keyup.enter="handleQuery" />
             </el-form-item>
-            <el-form-item label="联系人" prop="contactUserName">
-              <el-input v-model="queryParams.contactUserName" placeholder="请输入联系人" clearable @keyup.enter="handleQuery" />
+            <el-form-item label="机构负责人姓名" prop="contactUserName">
+              <el-input v-model="queryParams.contactUserName" placeholder="请输入负责人姓名" clearable @keyup.enter="handleQuery" />
             </el-form-item>
-            <el-form-item label="联系电话" prop="contactPhone">
-              <el-input v-model="queryParams.contactPhone" placeholder="请输入联系电话" clearable @keyup.enter="handleQuery" />
+            <el-form-item label="负责人手机号" prop="contactPhone">
+              <el-input v-model="queryParams.contactPhone" placeholder="请输入负责人手机号" clearable @keyup.enter="handleQuery" />
             </el-form-item>
             <el-form-item label="企业名称" prop="companyName">
               <el-input v-model="queryParams.companyName" placeholder="请输入企业名称" clearable @keyup.enter="handleQuery" />
@@ -58,10 +58,10 @@
         <el-table-column type="selection" width="55" align="center" />
         <el-table-column v-if="false" label="id" align="center" prop="id" />
         <el-table-column label="租户编号" align="center" prop="tenantId" />
-        <el-table-column label="联系人" align="center" prop="contactUserName" />
-        <el-table-column label="联系电话" align="center" prop="contactPhone" />
         <el-table-column label="企业名称" align="center" prop="companyName" />
-        <el-table-column label="社会信用代码" align="center" prop="licenseNumber" />
+        <el-table-column label="机构负责人姓名" align="center" prop="leaderName" />
+        <el-table-column label="负责人手机号" align="center" prop="leaderPhone" />
+        <!-- <el-table-column label="社会信用代码" align="center" prop="licenseNumber" /> -->
         <el-table-column label="过期时间" align="center" prop="expireTime" width="180">
           <template #default="scope">
             <span>{{ proxy.parseTime(scope.row.expireTime, '{y}-{m}-{d}') }}</span>
@@ -92,25 +92,46 @@
     </el-card>
     <!-- 添加或修改租户对话框 -->
     <el-dialog v-model="dialog.visible" :title="dialog.title" width="500px" append-to-body>
-      <el-form ref="tenantFormRef" :model="form" :rules="rules" label-width="80px">
+      <el-form ref="tenantFormRef" :model="form" :rules="rules" label-width="150px">
         <el-form-item label="企业名称" prop="companyName">
           <el-input v-model="form.companyName" placeholder="请输入企业名称" />
         </el-form-item>
-        <el-form-item label="联系人" prop="contactUserName">
+        <el-form-item label="企业联系人" prop="contactUserName">
           <el-input v-model="form.contactUserName" placeholder="请输入联系人" />
         </el-form-item>
-        <el-form-item label="联系电话" prop="contactPhone">
+        <el-form-item label="企业联系电话" prop="contactPhone">
           <el-input v-model="form.contactPhone" placeholder="请输入联系电话" />
         </el-form-item>
-        <el-form-item v-if="!form.id" label="用户名" prop="username">
-          <el-input v-model="form.username" placeholder="请输入系统用户名" maxlength="30" />
+        <el-form-item v-if="!form.id" label="后台管理员用户名" prop="username">
+          <el-input v-model="form.username" placeholder="请输入管理员用户名" maxlength="30" />
         </el-form-item>
-        <el-form-item v-if="!form.id" label="用户密码" prop="password">
-          <el-input v-model="form.password" type="password" placeholder="请输入系统用户密码" maxlength="20" />
+        <el-form-item v-if="!form.id" label="后台管理员密码" prop="password">
+          <el-input v-model="form.password" type="password" placeholder="请输入管理员密码" maxlength="20" />
+        </el-form-item>
+        <el-form-item v-if="!form.id" label="机构负责人姓名" prop="leaderName">
+          <el-input v-model="form.leaderName" placeholder="请输入机构负责人姓名" />
+        </el-form-item>
+        <el-form-item v-if="!form.id" label="负责人手机号" prop="leaderPhone">
+          <el-input v-model="form.leaderPhone" placeholder="请输入机构负责人手机号" />
+        </el-form-item>
+        <el-form-item v-if="!form.id" label="负责人密码" prop="leaderPassword">
+          <el-input v-model="form.leaderPassword" type="password" placeholder="请输入机构负责人登录密码" />
         </el-form-item>
         <el-form-item label="租户套餐" prop="packageId">
-          <el-select v-model="form.packageId" :disabled="!!form.tenantId" placeholder="请选择租户套餐" clearable style="width: 100%">
+          <el-select
+            v-model="form.packageId"
+            :disabled="!!form.tenantId"
+            placeholder="请选择租户套餐"
+            clearable
+            style="width: 100%"
+            @change="handlePackageChange"
+          >
             <el-option v-for="item in packageList" :key="item.packageId" :label="item.packageName" :value="item.packageId" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="!form.id" label="角色模板" prop="roleTemplateId">
+          <el-select v-model="form.roleTemplateId" placeholder="请先选择套餐" :disabled="!form.packageId" clearable style="width: 100%">
+            <el-option v-for="item in roleTemplateList" :key="item.id" :label="item.templateName" :value="item.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="过期时间" prop="expireTime">
@@ -126,12 +147,12 @@
         <el-form-item label="企业地址" prop="address">
           <el-input v-model="form.address" placeholder="请输入企业地址" />
         </el-form-item>
-        <el-form-item label="企业代码" prop="licenseNumber">
+        <!-- <el-form-item label="企业代码" prop="licenseNumber">
           <el-input v-model="form.licenseNumber" placeholder="请输入统一社会信用代码" />
-        </el-form-item>
-        <el-form-item label="企业简介" prop="intro">
+        </el-form-item> -->
+        <!-- <el-form-item label="企业简介" prop="intro">
           <el-input v-model="form.intro" type="textarea" placeholder="请输入企业简介" />
-        </el-form-item>
+        </el-form-item> -->
         <el-form-item label="备注" prop="remark">
           <el-input v-model="form.remark" placeholder="请输入备注" />
         </el-form-item>
@@ -159,9 +180,11 @@ import {
   syncTenantConfig
 } from '@/api/system/tenant';
 import { selectTenantPackage } from '@/api/system/tenantPackage';
+import { listRoleTemplate } from '@/api/system/roleTemplate';
 import { useUserStore } from '@/store/modules/user';
 import { TenantForm, TenantQuery, TenantVO } from '@/api/system/tenant/types';
 import { TenantPkgVO } from '@/api/system/tenantPackage/types';
+import { RoleTemplateVO } from '@/api/system/roleTemplate/types';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 
@@ -169,6 +192,7 @@ const userStore = useUserStore();
 const userId = ref(userStore.userId);
 const tenantList = ref<TenantVO[]>([]);
 const packageList = ref<TenantPkgVO[]>([]);
+const roleTemplateList = ref<RoleTemplateVO[]>([]);
 const buttonLoading = ref(false);
 const loading = ref(true);
 const showSearch = ref(true);
@@ -199,9 +223,13 @@ const initFormData: TenantForm = {
   intro: '',
   remark: '',
   packageId: '',
+  roleTemplateId: '',
   expireTime: '',
   accountCount: 0,
-  status: '0'
+  status: '0',
+  leaderName: '',
+  leaderPhone: '',
+  leaderPassword: ''
 };
 const data = reactive<PageData<TenantForm, TenantQuery>>({
   form: { ...initFormData },
@@ -219,6 +247,11 @@ const data = reactive<PageData<TenantForm, TenantQuery>>({
     contactUserName: [{ required: true, message: '联系人不能为空', trigger: 'blur' }],
     contactPhone: [{ required: true, message: '联系电话不能为空', trigger: 'blur' }],
     companyName: [{ required: true, message: '企业名称不能为空', trigger: 'blur' }],
+    packageId: [{ required: true, message: '租户套餐不能为空', trigger: 'blur' }],
+    roleTemplateId: [{ required: true, message: '内置角色模板不能为空', trigger: 'blur' }],
+    leaderName: [{ required: true, message: '机构负责人姓名不能为空', trigger: 'blur' }],
+    leaderPhone: [{ required: true, message: '负责人手机号不能为空', trigger: 'blur' }],
+    leaderPassword: [{ required: true, message: '负责人密码不能为空', trigger: 'blur' }],
     username: [
       { required: true, message: '用户名不能为空', trigger: 'blur' },
       { min: 2, max: 20, message: '用户名称长度必须介于 2 和 20 之间', trigger: 'blur' }
@@ -236,6 +269,24 @@ const { queryParams, form, rules } = toRefs(data);
 const getTenantPackage = async () => {
   const res = await selectTenantPackage();
   packageList.value = res.data;
+};
+
+/** 根据套餐ID查询所有可用的角色模板 */
+const getRoleTemplateList = async (packageId?: string | number) => {
+  if (!packageId) {
+    roleTemplateList.value = [];
+    return;
+  }
+  const res = await listRoleTemplate({
+    tenantPackageId: packageId
+  } as any);
+  roleTemplateList.value = res.rows;
+};
+
+/** 套餐变更处理 */
+const handlePackageChange = (packageId: string | number) => {
+  form.value.roleTemplateId = undefined;
+  getRoleTemplateList(packageId);
 };
 
 /** 查询租户列表 */
@@ -302,9 +353,13 @@ const handleAdd = () => {
 const handleUpdate = async (row?: TenantVO) => {
   reset();
   await getTenantPackage();
+  // 注意由于角色模版只在创建生效，修改时我们可以不展示也可以加载。这里我们加载它以备如果之后需要显示。
   const _id = row?.id || ids.value[0];
   const res = await getTenant(_id);
   Object.assign(form.value, res.data);
+  if (form.value.packageId) {
+    await getRoleTemplateList(form.value.packageId);
+  }
   dialog.visible = true;
   dialog.title = '修改租户';
 };
@@ -315,7 +370,9 @@ const submitForm = () => {
     if (valid) {
       buttonLoading.value = true;
       if (form.value.id) {
-        await updateTenant(form.value).finally(() => (buttonLoading.value = false));
+        // 修改时，剔除机构负责人相关字段（因为隐藏了且不支持中途修改）
+        const { leaderName, leaderPhone, leaderPassword, ...updateData } = form.value;
+        await updateTenant(updateData).finally(() => (buttonLoading.value = false));
       } else {
         await addTenant(form.value).finally(() => (buttonLoading.value = false));
       }

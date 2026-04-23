@@ -571,8 +571,7 @@ const fetchWalletBalance = async () => {
 const fetchProducts = async () => {
   loadingProducts.value = true;
   try {
-    const query = { pageNum: 1, pageSize: 200 };
-    const res: any = await listSalesProducts(query);
+    const res: any = await listSalesProducts();
     let allProducts = res.rows || res.data?.rows || [];
 
     if (activeCategory.value !== 0 && activeCategory.value !== '0') {

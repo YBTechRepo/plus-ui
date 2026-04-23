@@ -20,6 +20,16 @@ export interface CommissionRecordVO {
   productId: string | number;
 
   /**
+   * 产品名称
+   */
+  productName: string;
+
+  /**
+   * 实交保费
+   */
+  premium: number;
+
+  /**
    * 佣金计算基数
    */
   commissionBase: number;
@@ -146,6 +156,16 @@ export interface CommissionRecordForm extends BaseEntity {
    * 产品ID
    */
   productId?: string | number;
+
+    /**
+   * 产品名称
+   */
+  productName?: string;
+
+  /**
+   * 实交保费
+   */
+  premium?: number;
 
   /**
    * 佣金计算基数
