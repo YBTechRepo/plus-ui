@@ -58,10 +58,7 @@
           <template #default="scope"><dict-tag :options="insurance_company" :value="scope.row.companyCode" /></template>
         </el-table-column>
 
-        <el-table-column label="产品类型" align="center" prop="productType" width="100">
-          <template #default="scope"><dict-tag :options="insurance_product_type"
-              :value="scope.row.productType" /></template>
-        </el-table-column>
+        <el-table-column label="所属分类" align="center" prop="categoryName" width="100" />
 
         <el-table-column label="产品模式" align="center" prop="productMode" width="100">
           <template #default="scope">
@@ -132,10 +129,17 @@
                 </el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="产品类型" prop="product.productType">
-                  <el-select v-model="form.product.productType" placeholder="请选择产品类型" class="w-full">
-                    <el-option v-for="dict in insurance_product_type" :key="dict.value" :label="dict.label" :value="dict.value" />
-                  </el-select>
+                <el-form-item label="所属分类" prop="product.categoryId">
+                  <el-tree-select
+                    v-model="form.product.categoryId"
+                    :data="categoryOptions"
+                    :props="{ value: 'categoryId', label: 'categoryName', children: 'children' }"
+                    value-key="categoryId"
+                    check-strictly
+                    placeholder="请选择产品所属分类"
+                    class="w-full"
+                    @change="handleCategoryChange"
+                  />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -169,6 +173,18 @@
                   <el-select v-model="form.product.status" placeholder="请选择产品状态" class="w-full">
                     <el-option v-for="dict in insurance_product_status" :key="dict.value" :label="dict.label" :value="parseInt(dict.value)" />
                   </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="24">
+                <el-form-item label="营销标签" prop="product.marketingTags">
+                  <el-checkbox-group v-model="marketingTagsArr">
+                    <el-checkbox v-for="tag in currentCategoryTags" :key="tag" :value="tag">
+                      {{ tag }}
+                    </el-checkbox>
+                  </el-checkbox-group>
+                  <div v-if="currentCategoryTags.length === 0" style="color: #999; font-size: 12px; margin-left: 10px;">
+                    （该分类暂未配置任何营销标签）
+                  </div>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -369,6 +385,7 @@ import {
   updateProductFull// 替换原来的 update
 } from '@/api/insurance/InsuranceProductConfig';
 import { InsuranceProductConfigVO, InsuranceProductConfigQuery } from '@/api/insurance/InsuranceProductConfig/types';
+import { listInsuranceProductCategory } from '@/api/insurance/insuranceProductCategory';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const {
@@ -407,6 +424,9 @@ const activeTab = ref('basic');
 // 🌟 图片上传组件专用的响应式字符串 (拦截数组转字符串)
 const featureImagesStr = ref('');
 const claimImagesStr = ref('');
+const marketingTagsArr = ref<string[]>([]);
+const currentCategoryTags = ref<string[]>([]);
+const categoryOptions = ref<any[]>([]);
 
 // 🌟 重构超级大对象的初始值
 const initFormData: any = {
@@ -426,6 +446,9 @@ const initFormData: any = {
     sort: 0,
     insureMode: undefined,
     paymentMode: undefined,
+    categoryId: undefined,
+    categoryName: undefined,
+    marketingTags: undefined
   },
   liabilityList: [],
   insureNotice: [],
@@ -446,7 +469,7 @@ const data = reactive<any>({
     'product.productCode': [{ required: true, message: "产品编码不能为空", trigger: "blur" }],
     'product.productName': [{ required: true, message: "产品名称不能为空", trigger: "blur" }],
     'product.companyCode': [{ required: true, message: "保险公司不能为空", trigger: "change" }],
-    'product.productType': [{ required: true, message: "产品类型不能为空", trigger: "change" }],
+    'product.categoryId': [{ required: true, message: "所属分类不能为空", trigger: "change" }],
     'product.status': [{ required: true, message: "产品状态不能为空", trigger: "change" }]
   }
 });
@@ -492,6 +515,8 @@ const reset = () => {
   activeTab.value = 'basic';
   featureImagesStr.value = "";
   claimImagesStr.value = "";
+  marketingTagsArr.value = [];
+  currentCategoryTags.value = [];
   serviceFeeList.value = [];
   form.value = JSON.parse(JSON.stringify(initFormData));
   InsuranceProductConfigFormRef.value?.resetFields();
@@ -524,6 +549,15 @@ const handleUpdate = async (row?: InsuranceProductConfigVO) => {
   // 将后端传来的图片 JSON 数组，用逗号连接成字符串赋值给图片组件
   featureImagesStr.value = form.value.featureImages ? form.value.featureImages.join(',') : '';
   claimImagesStr.value = form.value.claimImages ? form.value.claimImages.join(',') : '';
+  marketingTagsArr.value = form.value.product.marketingTags ? form.value.product.marketingTags.split(',') : [];
+
+  // 回显时，根据 categoryId 动态加载该分类的可选标签
+  if (form.value.product.categoryId) {
+    const node = findNode(categoryOptions.value, form.value.product.categoryId);
+    if (node) {
+      currentCategoryTags.value = node.marketingTags ? node.marketingTags.split(',') : [];
+    }
+  }
 
   // 解析 serviceFeeConfig JSON 字符串 → 填充 serviceFeeList
   try {
@@ -555,6 +589,7 @@ const submitForm = () => {
       // 提交前，把组件上的逗号图片字符串，切成数组塞进表单
       form.value.featureImages = featureImagesStr.value ? featureImagesStr.value.split(',') : [];
       form.value.claimImages = claimImagesStr.value ? claimImagesStr.value.split(',') : [];
+      form.value.product.marketingTags = marketingTagsArr.value.length > 0 ? marketingTagsArr.value.join(',') : undefined;
 
       // 将 serviceFeeList 序列化为 JSON 字符串
       if (serviceFeeList.value.length > 0) {
@@ -631,7 +666,40 @@ const removeServiceFee = (index: number) => {
   serviceFeeList.value.splice(index, 1);
 };
 
-onMounted(() => { getList(); });
+const getTreeselect = async () => {
+  const res = await listInsuranceProductCategory();
+  categoryOptions.value = proxy?.handleTree(res.rows, 'categoryId', 'parentId');
+};
+
+const handleCategoryChange = (val: any) => {
+  if (val) {
+    // find category name by id from categoryOptions
+    const node = findNode(categoryOptions.value, val);
+    if (node) {
+      form.value.product.categoryName = node.categoryName;
+      currentCategoryTags.value = node.marketingTags ? node.marketingTags.split(',') : [];
+      // 切换分类时，把不在当前分类标签池里的已选标签过滤掉
+      marketingTagsArr.value = marketingTagsArr.value.filter(tag => currentCategoryTags.value.includes(tag));
+    }
+  } else {
+    form.value.product.categoryName = undefined;
+    currentCategoryTags.value = [];
+    marketingTagsArr.value = [];
+  }
+};
+
+const findNode = (tree: any[], id: any): any => {
+  for (let node of tree) {
+    if (node.categoryId === id) return node;
+    if (node.children && node.children.length > 0) {
+      let res = findNode(node.children, id);
+      if (res) return res;
+    }
+  }
+  return null;
+};
+
+onMounted(() => { getList(); getTreeselect(); });
 </script>
 
 <style scoped>

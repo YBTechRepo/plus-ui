@@ -20,6 +20,21 @@ export interface InsuranceProductConfigVO {
   companyCode: string;
 
   /**
+   * 分类ID
+   */
+  categoryId: string | number;
+
+  /**
+   * 分类名称
+   */
+  categoryName: string;
+
+  /**
+   * 营销标签
+   */
+  marketingTags: string;
+
+  /**
    * 产品类型
    */
   productType: string;
