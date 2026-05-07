@@ -47,12 +47,13 @@
           </template>
         </el-table-column>
         <el-table-column label="产品代码" align="center" prop="productCode" />
-        <el-table-column label="产品名称" align="center" prop="productName" />
-        <el-table-column label="产品类型" align="center" prop="productType">
+        <el-table-column label="产品名称" align="center" prop="productName" show-overflow-tooltip />
+        <el-table-column label="所属分类" align="center" width="200" show-overflow-tooltip>
           <template #default="scope">
-            <dict-tag :options="insurance_product_type" :value="scope.row.productType"/>
+            <span>{{ getCategoryPath(scope.row.categoryId) }}</span>
           </template>
         </el-table-column>
+
         <el-table-column label="产品模式" align="center" prop="productMode">
           <template #default="scope">
             <dict-tag :options="insurance_product_mode" :value="scope.row.productMode"/>
@@ -83,17 +84,12 @@
         <el-table-column label="自定义排序" align="center" prop="sort" />
         <!-- <el-table-column label="乐观锁版本" align="center" prop="version" /> -->
         <!-- <el-table-column label="删除标记" align="center" prop="delFlag" /> -->
-        <el-table-column label="操作" align="center" fixed="right" min-width="160" class-name="small-padding fixed-width">
+        <el-table-column label="操作" align="center" fixed="right" min-width="320" class-name="small-padding fixed-width">
           <template #default="scope">
-            <el-tooltip content="查看服务费详情" placement="top">
-              <el-button link type="success" icon="Tickets" @click="handleViewServiceFee(scope.row)"></el-button>
-            </el-tooltip>
-            <el-tooltip content="修改" placement="top">
-              <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['insurance:InsuranceTenantProduct:edit']"></el-button>
-            </el-tooltip>
-            <el-tooltip content="删除" placement="top">
-              <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['insurance:InsuranceTenantProduct:remove']"></el-button>
-            </el-tooltip>
+            <el-button link type="primary" icon="View" @click="handleView(scope.row)">产品详情</el-button>
+            <el-button link type="success" icon="Tickets" @click="handleViewServiceFee(scope.row)">服务费详情</el-button>
+            <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['insurance:InsuranceTenantProduct:edit']">状态修改</el-button>
+            <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['insurance:InsuranceTenantProduct:remove']">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -139,7 +135,12 @@
 
       <el-table v-loading="productSelectLoading" border :data="productConfigList" @selection-change="handleProductSelectionChange">
         <el-table-column type="selection" width="55" align="center" :selectable="(row) => !row.hasAdded" />
-        <el-table-column label="产品名称" align="center" prop="productName" />
+        <el-table-column label="产品名称" align="center" prop="productName" show-overflow-tooltip />
+        <el-table-column label="所属分类" align="center" width="200" show-overflow-tooltip>
+          <template #default="scope">
+            <span>{{ getCategoryPath(scope.row.categoryId) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="产品代码" align="center" prop="productCode" />
         <el-table-column label="保险公司" align="center" prop="companyCode">
           <template #default="scope">
@@ -228,6 +229,7 @@ import { listInsuranceTenantProduct, getInsuranceTenantProduct, delInsuranceTena
 import { getServiceFeeConfig } from '@/api/insurance/InsuranceProductConfig';
 import type { InsuranceProductConfigVO } from '@/api/insurance/InsuranceProductConfig/types';
 import { InsuranceTenantProductVO, InsuranceTenantProductQuery, InsuranceTenantProductForm } from '@/api/insurance/InsuranceTenantProduct/types';
+import { listInsuranceProductCategory } from '@/api/insurance/insuranceProductCategory';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const { insurance_product_type, insurance_product_mode, insurance_company, insurance_product_status } = toRefs<any>(proxy?.useDict('insurance_product_type', 'insurance_product_mode', 'insurance_company', 'insurance_product_status'));
@@ -346,7 +348,10 @@ const initFormData: InsuranceTenantProductForm = {
   status: undefined,
   sort: undefined,
   version: undefined,
-  delFlag: undefined
+  delFlag: undefined,
+  categoryId: undefined,
+  categoryName: undefined,
+  marketingTags: undefined
 }
 const data = reactive<PageData<InsuranceTenantProductForm, InsuranceTenantProductQuery>>({
   form: {...initFormData},
@@ -489,6 +494,14 @@ const submitForm = () => {
   });
 }
 
+/** 查看产品详情 */
+const handleView = (row: InsuranceTenantProductVO) => {
+  proxy?.$router.push({
+    path: '/insurance/InsuranceProductConfig',
+    query: { id: row.productId }
+  });
+}
+
 /** 删除按钮操作 */
 const handleDelete = async (row?: InsuranceTenantProductVO) => {
   const _ids = row?.id || ids.value;
@@ -505,7 +518,27 @@ const handleExport = () => {
   }, `InsuranceTenantProduct_${new Date().getTime()}.xlsx`)
 }
 
+const categoryOptions = ref<any[]>([]);
+
+const getTreeselect = async () => {
+  const res = await listInsuranceProductCategory();
+  categoryOptions.value = proxy?.handleTree(res.rows, 'categoryId', 'parentId');
+};
+
+const getCategoryPath = (categoryId: any): string => {
+  if (!categoryId) return '--';
+  const all: any[] = [];
+  const flatten = (nodes: any[]) => nodes.forEach(n => { all.push(n); if (n.children) flatten(n.children); });
+  flatten(categoryOptions.value);
+  const node = all.find(n => String(n.categoryId) === String(categoryId));
+  if (!node) return '--';
+  if (!node.parentId || node.parentId === 0) return node.categoryName;
+  const parent = all.find(n => String(n.categoryId) === String(node.parentId));
+  return parent ? `${parent.categoryName} > ${node.categoryName}` : node.categoryName;
+};
+
 onMounted(() => {
   getList();
+  getTreeselect();
 });
 </script>

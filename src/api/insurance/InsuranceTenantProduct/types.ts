@@ -69,6 +69,21 @@ export interface InsuranceTenantProductVO {
    */
   delFlag: string;
 
+  /**
+   * 产品分类ID
+   */
+  categoryId?: string | number;
+
+  /**
+   * 产品分类名称
+   */
+  categoryName?: string;
+
+  /**
+   * 营销标签(逗号分隔)
+   */
+  marketingTags?: string;
+
 }
 
 export interface InsuranceTenantProductForm extends BaseEntity {
@@ -142,6 +157,21 @@ export interface InsuranceTenantProductForm extends BaseEntity {
    */
   delFlag?: string;
 
+  /**
+   * 产品分类ID
+   */
+  categoryId?: string | number;
+
+  /**
+   * 产品分类名称
+   */
+  categoryName?: string;
+
+  /**
+   * 营销标签(逗号分隔)
+   */
+  marketingTags?: string;
+
 }
 
 export interface InsuranceTenantProductQuery extends PageQuery {
@@ -175,6 +205,11 @@ export interface InsuranceTenantProductQuery extends PageQuery {
    * 上架状态
    */
   status?: string;
+
+  /**
+   * 产品分类ID
+   */
+  categoryId?: string | number;
 
   /**
    * 日期范围参数

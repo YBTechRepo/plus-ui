@@ -58,7 +58,11 @@
           <template #default="scope"><dict-tag :options="insurance_company" :value="scope.row.companyCode" /></template>
         </el-table-column>
 
-        <el-table-column label="所属分类" align="center" prop="categoryName" width="100" />
+        <el-table-column label="所属分类" align="center" width="200">
+          <template #default="scope">
+            <span>{{ getCategoryPath(scope.row.categoryId) }}</span>
+          </template>
+        </el-table-column>
 
         <el-table-column label="产品模式" align="center" prop="productMode" width="100">
           <template #default="scope">
@@ -470,7 +474,14 @@ const data = reactive<any>({
     'product.productName': [{ required: true, message: "产品名称不能为空", trigger: "blur" }],
     'product.companyCode': [{ required: true, message: "保险公司不能为空", trigger: "change" }],
     'product.categoryId': [{ required: true, message: "所属分类不能为空", trigger: "change" }],
-    'product.status': [{ required: true, message: "产品状态不能为空", trigger: "change" }]
+    'product.status': [{ required: true, message: "产品状态不能为空", trigger: "change" }],
+    'product.productMode': [{ required: true, message: "产品模式不能为空", trigger: "change" }],
+    'product.minPremium': [{ required: true, message: "最低保费不能为空", trigger: "blur" }],
+    'product.insureMode': [{ required: true, message: "投保模式不能为空", trigger: "change" }],
+    'product.paymentMode': [{ required: true, message: "支付模式不能为空", trigger: "change" }],
+    'product.description': [{ required: true, message: "产品说明不能为空", trigger: "blur" }],
+    'product.proposalUrl': [{ required: true, message: "投保链接不能为空", trigger: "blur" }],
+    'product.imgUrl': [{ required: true, message: "产品头图不能为空", trigger: "change" }]
   }
 });
 
@@ -551,11 +562,11 @@ const handleUpdate = async (row?: InsuranceProductConfigVO) => {
   claimImagesStr.value = form.value.claimImages ? form.value.claimImages.join(',') : '';
   marketingTagsArr.value = form.value.product.marketingTags ? form.value.product.marketingTags.split(',') : [];
 
-  // 回显时，根据 categoryId 动态加载该分类的可选标签
+  // 回显时，根据 categoryId 动态加载该分类的可选标签（包含继承自父分类的标签）
   if (form.value.product.categoryId) {
     const node = findNode(categoryOptions.value, form.value.product.categoryId);
     if (node) {
-      currentCategoryTags.value = node.marketingTags ? node.marketingTags.split(',') : [];
+      currentCategoryTags.value = getMergedCategoryTags(node);
     }
   }
 
@@ -677,7 +688,7 @@ const handleCategoryChange = (val: any) => {
     const node = findNode(categoryOptions.value, val);
     if (node) {
       form.value.product.categoryName = node.categoryName;
-      currentCategoryTags.value = node.marketingTags ? node.marketingTags.split(',') : [];
+      currentCategoryTags.value = getMergedCategoryTags(node);
       // 切换分类时，把不在当前分类标签池里的已选标签过滤掉
       marketingTagsArr.value = marketingTagsArr.value.filter(tag => currentCategoryTags.value.includes(tag));
     }
@@ -697,6 +708,29 @@ const findNode = (tree: any[], id: any): any => {
     }
   }
   return null;
+};
+
+/** 获取分类完整路径（一级 > 二级），用于列表展示 */
+const getCategoryPath = (categoryId: any): string => {
+  if (!categoryId) return '--';
+  const all: any[] = [];
+  const flatten = (nodes: any[]) => nodes.forEach(n => { all.push(n); if (n.children) flatten(n.children); });
+  flatten(categoryOptions.value);
+  const node = all.find(n => String(n.categoryId) === String(categoryId));
+  if (!node) return '--';
+  if (!node.parentId || node.parentId === 0) return node.categoryName;
+  const parent = all.find(n => String(n.categoryId) === String(node.parentId));
+  return parent ? `${parent.categoryName} > ${node.categoryName}` : node.categoryName;
+};
+
+/** 合并父级分类标签 + 本级分类标签，作为产品可选标签池 */
+const getMergedCategoryTags = (node: any): string[] => {
+  if (!node) return [];
+  const ownTags = node.marketingTags ? node.marketingTags.split(',').filter(Boolean) : [];
+  if (!node.parentId || node.parentId === 0) return ownTags;
+  const parent = findNode(categoryOptions.value, node.parentId);
+  const parentTags = parent?.marketingTags ? parent.marketingTags.split(',').filter(Boolean) : [];
+  return [...new Set([...parentTags, ...ownTags])];
 };
 
 onMounted(() => { getList(); getTreeselect(); });

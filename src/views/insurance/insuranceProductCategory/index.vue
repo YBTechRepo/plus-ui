@@ -64,6 +64,14 @@
           </template>
         </el-table-column>
         <el-table-column label="显示顺序" align="center" prop="sort" />
+        <el-table-column label="营销标签" align="center" prop="marketingTags" width="200">
+          <template #default="scope">
+            <template v-if="getMergedTags(scope.row).length > 0">
+              <el-tag v-for="tag in getMergedTags(scope.row)" :key="tag" size="small" style="margin: 2px;">{{ tag }}</el-tag>
+            </template>
+            <span v-else style="color: #c0c4cc;">--</span>
+          </template>
+        </el-table-column>
         <el-table-column label="分类状态" align="center" prop="status">
           <template #default="scope">
             <dict-tag :options="sys_normal_disable" :value="scope.row.status"/>
@@ -127,10 +135,21 @@
           <span v-if="form.iconColor" style="margin-left: 12px; font-size: 12px; color: #909399;">{{ form.iconColor }}</span>
           <span v-else style="margin-left: 12px; font-size: 12px; color: #c0c4cc;">未设置（将使用默认颜色）</span>
         </el-form-item>
-        <el-form-item label="关联标签" prop="marketingTags">
+        <!-- 继承标签（只读，来自父级分类） -->
+        <el-form-item label="继承标签" v-if="parentMarketingTags.length > 0">
+          <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+            <el-tag v-for="tag in parentMarketingTags" :key="tag" type="info" size="small" style="opacity: 0.75;">{{ tag }}</el-tag>
+            <span style="color: #c0c4cc; font-size: 12px; margin-left: 4px;">（继承自上级分类，不可修改）</span>
+          </div>
+        </el-form-item>
+        <!-- 本级专属标签（可编辑） -->
+        <el-form-item label="专属标签" prop="marketingTags">
           <el-select v-model="marketingTagsArr" multiple filterable allow-create default-first-option placeholder="可输入新标签并回车" class="w-full">
             <el-option v-for="tag in marketingTagsArr" :key="tag" :label="tag" :value="tag" />
           </el-select>
+          <div v-if="parentMarketingTags.length > 0" style="color: #909399; font-size: 12px; margin-top: 4px;">
+            最终生效标签 = 继承标签 + 专属标签（共 {{ parentMarketingTags.length + marketingTagsArr.length }} 个）
+          </div>
         </el-form-item>
         <el-form-item label="显示顺序" prop="sort">
           <el-input-number v-model="form.sort" controls-position="right" :min="0" />
@@ -160,6 +179,7 @@ const { sys_normal_disable } = toRefs<any>(proxy?.useDict('sys_normal_disable'))
 
 const insuranceProductCategoryList = ref<InsuranceProductCategoryVO[]>([]);
 const marketingTagsArr = ref<string[]>([]);
+const parentMarketingTags = ref<string[]>([]);
 const buttonLoading = ref(false);
 const loading = ref(true);
 const showSearch = ref(true);
@@ -283,6 +303,10 @@ const data = reactive<PageData<InsuranceProductCategoryForm, InsuranceProductCat
   rules: {
     parentId: [{ required: true, message: "上级分类不能为空", trigger: "change" }],
     categoryName: [{ required: true, message: "分类名称不能为空", trigger: "blur" }],
+    icon: [{ required: true, message: "分类图标不能为空", trigger: "change" }],
+    iconColor: [{ required: true, message: "图标颜色不能为空", trigger: "change" }],
+    marketingTags: [{ required: true, message: "专属标签不能为空", trigger: "change" }],
+    status: [{ required: true, message: "分类状态不能为空", trigger: "change" }]
   }
 });
 
@@ -306,6 +330,7 @@ const cancel = () => {
 const reset = () => {
   form.value = {...initFormData};
   marketingTagsArr.value = [];
+  parentMarketingTags.value = [];
   insuranceProductCategoryFormRef.value?.resetFields();
 }
 
@@ -351,7 +376,13 @@ const handleUpdate = async (row?: InsuranceProductCategoryVO) => {
   const _categoryId = row?.categoryId;
   const res = await getInsuranceProductCategory(_categoryId);
   Object.assign(form.value, res.data);
-  marketingTagsArr.value = form.value.marketingTags ? form.value.marketingTags.split(',') : [];
+  marketingTagsArr.value = form.value.marketingTags ? form.value.marketingTags.split(',').filter(Boolean) : [];
+  // 加载父分类标签
+  if (form.value.parentId && form.value.parentId !== 0) {
+    const parentRes = await getInsuranceProductCategory(form.value.parentId);
+    const tags = parentRes.data?.marketingTags;
+    parentMarketingTags.value = tags ? tags.split(',').filter(Boolean) : [];
+  }
   dialog.visible = true;
   dialog.title = "修改产品分类管理";
 }
@@ -389,6 +420,38 @@ const handleExport = () => {
     ...queryParams.value
   }, `insuranceProductCategory_${new Date().getTime()}.xlsx`)
 }
+
+/** 合并父级标签+本级标签，用于列表展示 */
+const getMergedTags = (row: InsuranceProductCategoryVO): string[] => {
+  const ownTags = row.marketingTags ? row.marketingTags.split(',').filter(Boolean) : [];
+  if (!row.parentId || row.parentId === 0) return ownTags;
+  // 从已加载的列表数据中找父节点（tree 已展平，需要从原始数据找）
+  const allRows: InsuranceProductCategoryVO[] = [];
+  const flatten = (nodes: any[]) => nodes.forEach(n => { allRows.push(n); if (n.children) flatten(n.children); });
+  flatten(insuranceProductCategoryList.value);
+  const parent = allRows.find(item => String(item.categoryId) === String(row.parentId));
+  const parentTags = parent?.marketingTags ? parent.marketingTags.split(',').filter(Boolean) : [];
+  return [...new Set([...parentTags, ...ownTags])];
+};
+
+/** 监听上级分类变更，自动加载父级营销标签 */
+watch(
+  () => form.value.parentId,
+  async (newParentId) => {
+    if (!newParentId || newParentId === 0) {
+      parentMarketingTags.value = [];
+      return;
+    }
+    try {
+      const parentRes = await getInsuranceProductCategory(newParentId);
+      const tags = parentRes.data?.marketingTags;
+      parentMarketingTags.value = tags ? tags.split(',').filter(Boolean) : [];
+    } catch {
+      parentMarketingTags.value = [];
+    }
+  },
+  { immediate: false }
+);
 
 onMounted(() => {
   getList();
