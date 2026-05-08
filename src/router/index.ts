@@ -88,6 +88,18 @@ export const constantRoutes: RouteRecordRaw[] = [
         meta: { title: '个人中心', icon: 'user' }
       }
     ]
+  },
+  {
+    path: '/notice-center',
+    component: Layout,
+    children: [
+      {
+        path: '',
+        component: () => import('@/views/notice/index.vue'),
+        name: 'NoticeCenter',
+        meta: { title: '通知公告', icon: 'message' }
+      }
+    ]
   }
 ];
 

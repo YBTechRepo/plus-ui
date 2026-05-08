@@ -72,6 +72,9 @@
           </div>
           <template #dropdown>
             <el-dropdown-menu>
+              <router-link to="/notice-center">
+                <el-dropdown-item>通知公告</el-dropdown-item>
+              </router-link>
               <router-link v-if="!dynamic" to="/user/profile">
                 <el-dropdown-item>{{ proxy.$t('navbar.personalCenter') }}</el-dropdown-item>
               </router-link>

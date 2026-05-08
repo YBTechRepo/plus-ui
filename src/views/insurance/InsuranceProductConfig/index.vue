@@ -480,7 +480,6 @@ const data = reactive<any>({
     'product.insureMode': [{ required: true, message: "投保模式不能为空", trigger: "change" }],
     'product.paymentMode': [{ required: true, message: "支付模式不能为空", trigger: "change" }],
     'product.description': [{ required: true, message: "产品说明不能为空", trigger: "blur" }],
-    'product.proposalUrl': [{ required: true, message: "投保链接不能为空", trigger: "blur" }],
     'product.imgUrl': [{ required: true, message: "产品头图不能为空", trigger: "change" }]
   }
 });

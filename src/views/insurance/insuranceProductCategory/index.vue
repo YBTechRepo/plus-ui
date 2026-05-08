@@ -305,7 +305,6 @@ const data = reactive<PageData<InsuranceProductCategoryForm, InsuranceProductCat
     categoryName: [{ required: true, message: "分类名称不能为空", trigger: "blur" }],
     icon: [{ required: true, message: "分类图标不能为空", trigger: "change" }],
     iconColor: [{ required: true, message: "图标颜色不能为空", trigger: "change" }],
-    marketingTags: [{ required: true, message: "专属标签不能为空", trigger: "change" }],
     status: [{ required: true, message: "分类状态不能为空", trigger: "change" }]
   }
 });

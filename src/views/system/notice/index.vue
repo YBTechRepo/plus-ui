@@ -15,6 +15,11 @@
                 <el-option v-for="dict in sys_notice_type" :key="dict.value" :label="dict.label" :value="dict.value" />
               </el-select>
             </el-form-item>
+            <el-form-item label="客户端" prop="clientId">
+              <el-select v-model="queryParams.clientId" placeholder="客户端" clearable filterable>
+                <el-option v-for="client in clientOptions" :key="client.clientId" :label="formatClientLabel(client)" :value="client.clientId" />
+              </el-select>
+            </el-form-item>
             <el-form-item>
               <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
               <el-button icon="Refresh" @click="resetQuery">重置</el-button>
@@ -53,9 +58,19 @@
             <dict-tag :options="sys_notice_type" :value="scope.row.noticeType" />
           </template>
         </el-table-column>
+        <el-table-column label="客户端" align="center" prop="clientId" min-width="140" :show-overflow-tooltip="true">
+          <template #default="scope">
+            <span>{{ getClientLabel(scope.row.clientId, scope.row.clientKey) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="状态" align="center" prop="status" width="100">
           <template #default="scope">
             <dict-tag :options="sys_notice_status" :value="scope.row.status" />
+          </template>
+        </el-table-column>
+        <el-table-column label="登录弹窗" align="center" prop="popupFlag" width="100">
+          <template #default="scope">
+            <el-tag :type="scope.row.popupFlag === '1' ? 'success' : 'info'">{{ scope.row.popupFlag === '1' ? '是' : '否' }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="创建者" align="center" prop="createByName" width="100" />
@@ -94,11 +109,36 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="24">
+          <el-col :span="12">
+            <el-form-item label="客户端" prop="clientId">
+              <el-select v-model="form.clientId" placeholder="请选择客户端" filterable>
+                <el-option v-for="client in clientOptions" :key="client.clientId" :label="formatClientLabel(client)" :value="client.clientId" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
             <el-form-item label="状态">
               <el-radio-group v-model="form.status">
                 <el-radio v-for="dict in sys_notice_status" :key="dict.value" :value="dict.value">{{ dict.label }}</el-radio>
               </el-radio-group>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="登录弹窗" prop="popupFlag">
+              <el-switch v-model="form.popupFlag" active-value="1" inactive-value="0" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24" v-if="form.popupFlag === '1'">
+            <el-form-item label="弹窗时间">
+              <el-date-picker
+                v-model="popupTimeRange"
+                type="datetimerange"
+                range-separator="至"
+                start-placeholder="开始时间"
+                end-placeholder="结束时间"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                clearable
+              />
             </el-form-item>
           </el-col>
           <el-col :span="24">
@@ -121,17 +161,21 @@
 <script setup name="Notice" lang="ts">
 import { listNotice, getNotice, delNotice, addNotice, updateNotice } from '@/api/system/notice';
 import { NoticeForm, NoticeQuery, NoticeVO } from '@/api/system/notice/types';
+import { listClient } from '@/api/system/client';
+import { ClientVO } from '@/api/system/client/types';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const { sys_notice_status, sys_notice_type } = toRefs<any>(proxy?.useDict('sys_notice_status', 'sys_notice_type'));
 
 const noticeList = ref<NoticeVO[]>([]);
+const clientOptions = ref<ClientVO[]>([]);
 const loading = ref(true);
 const showSearch = ref(true);
 const ids = ref<Array<string | number>>([]);
 const single = ref(true);
 const multiple = ref(true);
 const total = ref(0);
+const popupTimeRange = ref<[string, string] | []>([]);
 
 const queryFormRef = ref<ElFormInstance>();
 const noticeFormRef = ref<ElFormInstance>();
@@ -146,7 +190,11 @@ const initFormData: NoticeForm = {
   noticeTitle: '',
   noticeType: '',
   noticeContent: '',
+  clientId: import.meta.env.VITE_APP_CLIENT_ID,
   status: '0',
+  popupFlag: '0',
+  popupStartTime: undefined,
+  popupEndTime: undefined,
   remark: '',
   createByName: ''
 };
@@ -158,11 +206,13 @@ const data = reactive<PageData<NoticeForm, NoticeQuery>>({
     noticeTitle: '',
     createByName: '',
     status: '',
-    noticeType: ''
+    noticeType: '',
+    clientId: ''
   },
   rules: {
     noticeTitle: [{ required: true, message: '公告标题不能为空', trigger: 'blur' }],
-    noticeType: [{ required: true, message: '公告类型不能为空', trigger: 'change' }]
+    noticeType: [{ required: true, message: '公告类型不能为空', trigger: 'change' }],
+    clientId: [{ required: true, message: '客户端不能为空', trigger: 'change' }]
   }
 });
 
@@ -176,6 +226,23 @@ const getList = async () => {
   total.value = res.total;
   loading.value = false;
 };
+
+const getClientOptions = async () => {
+  const res = await listClient({ pageNum: 1, pageSize: 999, status: '0' });
+  clientOptions.value = res.rows;
+};
+
+const formatClientLabel = (client: ClientVO) => {
+  return client.clientKey ? `${client.clientKey}（${client.clientId}）` : client.clientId;
+};
+
+const getClientLabel = (clientId?: string, clientKey?: string) => {
+  const client = clientOptions.value.find((item) => item.clientId === clientId);
+  if (client) {
+    return formatClientLabel(client);
+  }
+  return clientKey ? `${clientKey}（${clientId}）` : clientId || '-';
+};
 /** 取消按钮 */
 const cancel = () => {
   reset();
@@ -184,6 +251,7 @@ const cancel = () => {
 /** 表单重置 */
 const reset = () => {
   form.value = { ...initFormData };
+  popupTimeRange.value = [];
   noticeFormRef.value?.resetFields();
 };
 /** 搜索按钮操作 */
@@ -214,6 +282,7 @@ const handleUpdate = async (row?: NoticeVO) => {
   const noticeId = row?.noticeId || ids.value[0];
   const { data } = await getNotice(noticeId);
   Object.assign(form.value, data);
+  popupTimeRange.value = data.popupStartTime && data.popupEndTime ? [data.popupStartTime, data.popupEndTime] : [];
   dialog.visible = true;
   dialog.title = '修改公告';
 };
@@ -221,6 +290,9 @@ const handleUpdate = async (row?: NoticeVO) => {
 const submitForm = () => {
   noticeFormRef.value?.validate(async (valid: boolean) => {
     if (valid) {
+      const [popupStartTime, popupEndTime] = form.value.popupFlag === '1' ? popupTimeRange.value : [];
+      form.value.popupStartTime = popupStartTime;
+      form.value.popupEndTime = popupEndTime;
       form.value.noticeId ? await updateNotice(form.value) : await addNotice(form.value);
       proxy?.$modal.msgSuccess('操作成功');
       dialog.visible = false;
@@ -238,6 +310,7 @@ const handleDelete = async (row?: NoticeVO) => {
 };
 
 onMounted(() => {
+  getClientOptions();
   getList();
 });
 </script>
