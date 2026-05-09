@@ -732,7 +732,13 @@ const getMergedCategoryTags = (node: any): string[] => {
   return [...new Set([...parentTags, ...ownTags])];
 };
 
-onMounted(() => { getList(); getTreeselect(); });
+onMounted(async () => {
+  await getList();
+  await getTreeselect();
+  if (proxy?.$route?.query?.action === 'add') {
+    handleAdd();
+  }
+});
 </script>
 
 <style scoped>

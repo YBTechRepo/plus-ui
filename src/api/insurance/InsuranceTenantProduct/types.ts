@@ -35,6 +35,16 @@ export interface InsuranceTenantProductVO {
   productMode: number;
 
   /**
+   * 投保模式
+   */
+  insureMode?: number;
+
+  /**
+   * 支付模式
+   */
+  paymentMode?: number;
+
+  /**
    * 最低保费
    */
   minPremium: number;
@@ -43,6 +53,16 @@ export interface InsuranceTenantProductVO {
    * 产品头图
    */
   img: string;
+
+  /**
+   * 产品头图访问地址
+   */
+  imgUrl?: string;
+
+  /**
+   * 产品头图访问地址
+   */
+  imgUrlUrl?: string;
 
   /**
    * 产品特点
@@ -58,6 +78,16 @@ export interface InsuranceTenantProductVO {
    * 自定义排序
    */
   sort: number;
+
+  /**
+   * 服务费比例
+   */
+  serviceFee?: number | string;
+
+  /**
+   * 净费出单金额
+   */
+  netPremium?: number | string;
 
   /**
    * 乐观锁版本
@@ -84,6 +114,15 @@ export interface InsuranceTenantProductVO {
    */
   marketingTags?: string;
 
+  /**
+   * 投保链接
+   */
+  proposalUrl?: string;
+
+  /**
+   * 投保链接(兼容后端历史大写字段)
+   */
+  ProposalUrl?: string;
 }
 
 export interface InsuranceTenantProductForm extends BaseEntity {
@@ -121,6 +160,16 @@ export interface InsuranceTenantProductForm extends BaseEntity {
    * 产品模式
    */
   productMode?: number;
+
+  /**
+   * 投保模式
+   */
+  insureMode?: number;
+
+  /**
+   * 支付模式
+   */
+  paymentMode?: number;
 
   /**
    * 最低保费
@@ -172,10 +221,13 @@ export interface InsuranceTenantProductForm extends BaseEntity {
    */
   marketingTags?: string;
 
+  /**
+   * 投保链接
+   */
+  proposalUrl?: string;
 }
 
 export interface InsuranceTenantProductQuery extends PageQuery {
-
   /**
    * 保险公司
    */
@@ -214,5 +266,11 @@ export interface InsuranceTenantProductQuery extends PageQuery {
   /**
    * 日期范围参数
    */
-  params?: any;
+  params?: {
+    /**
+     * 营销标签筛选，后端按 marketing_tags 做 FIND_IN_SET 查询
+     */
+    marketingTag?: string;
+    [key: string]: any;
+  };
 }

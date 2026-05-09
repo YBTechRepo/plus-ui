@@ -73,3 +73,59 @@ export const confirmPay = (data: InsuranceApplyRecordVO | InsuranceApplyRecordFo
     data: data
   });
 };
+
+/**
+ * 余额支付
+ * @param data
+ */
+export const payWithBalance = (data: { orderNo: string; payAmount: number }) => {
+  return request({
+    url: '/insurance/InsuranceApplyRecord/payWithBalance',
+    method: 'post',
+    data
+  });
+};
+
+/**
+ * 取消投保记录
+ * @param data
+ */
+export const cancelInsuranceApplyRecord = (data: {
+  id: string | number;
+  orderNo: string;
+  productId: string | number;
+  agentUserId: string | number;
+  agentDeptId: string | number;
+}) => {
+  return request({
+    url: '/insurance/InsuranceApplyRecord/cancelOrder',
+    method: 'post',
+    data
+  });
+};
+
+/**
+ * 保存投被保人信息
+ * @param orderNo 订单号
+ * @param data 投被保人信息
+ */
+export const saveInsureInfo = (orderNo: string, data: any) => {
+  return request({
+    url: `/insurance/InsuranceApplyRecord/saveInsureInfo/${orderNo}`,
+    method: 'post',
+    data
+  });
+};
+
+/**
+ * 根据订单号查询投保记录
+ * @param orderNo 订单号
+ */
+export const getInsuranceApplyRecordByOrderNo = async (orderNo: string): Promise<any> => {
+  const res: any = await listInsuranceApplyRecord({ orderNo, pageNum: 1, pageSize: 10 });
+  const list = res.data || res.rows || [];
+  return {
+    ...res,
+    data: list.length > 0 ? list[0] : null
+  };
+};

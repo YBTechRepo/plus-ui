@@ -6,8 +6,8 @@
         <span class="filter-label">产品分类：</span>
         <el-radio-group v-model="activeCategory" @change="fetchProducts">
           <el-radio-button :label="0">全部</el-radio-button>
-          <el-radio-button v-for="cat in productCategories" :key="cat.dictValue" :label="cat.dictValue">
-            {{ cat.dictLabel }}
+          <el-radio-button v-for="cat in productCategories" :key="cat.categoryId" :label="cat.categoryId">
+            {{ cat.categoryName }}
           </el-radio-button>
         </el-radio-group>
       </div>
@@ -67,6 +67,8 @@
         </el-col>
       </el-row>
     </div>
+
+    <batch-insurance-drawer v-model="batchDrawerVisible" :product="currentProduct" />
 
     <!-- 批量投保向导 -->
     <el-drawer title="批量投保向导" v-model="showBatchDrawer" size="85%" :close-on-click-modal="false" class="batch-drawer">
@@ -312,10 +314,12 @@ import {
   submitBatch
 } from '@/api/insurance/batchInsurance';
 import { getDicts } from '@/api/system/dict/data';
+import { listInsuranceProductCategory } from '@/api/insurance/insuranceProductCategory';
 import { getUserAccount } from '@/api/finance/myWallet';
 import { getConfigKey } from '@/api/system/config';
 import { useUserStore } from '@/store/modules/user';
 import defaultProductImg from '@/assets/images/profile.jpg';
+import BatchInsuranceDrawer from '@/views/insurance/batchInsurance/components/BatchInsuranceDrawer.vue';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -340,12 +344,14 @@ onErrorCaptured((err, instance, info) => {
 });
 
 const productCategories = ref<any[]>([]);
+const allProductCategories = ref<any[]>([]);
 const productList = ref<any[]>([]);
 const loadingProducts = ref(false);
 const userBalance = ref(0);
 
 const activeCategory = ref<number | string>(0);
 const currentProduct = ref<any>(null);
+const batchDrawerVisible = ref(false);
 
 // 向导状态变量
 const showBatchDrawer = ref(false);
@@ -546,15 +552,46 @@ const getNetPremium = (product: any) => {
 };
 
 const getDictsList = () => {
-  getDicts('insurance_product_type').then((res: any) => {
-    productCategories.value = res.data || res || [];
-  });
   getDicts('insurance_id_type').then((res: any) => {
     sys_cert_types.value = res.data || res || [];
   });
   getDicts('insurance_relationship_to_insured').then((res: any) => {
     sys_relation_types.value = res.data || res || [];
   });
+};
+
+const fetchProductCategories = async () => {
+  try {
+    const res: any = await listInsuranceProductCategory({
+      status: 0
+    });
+    const rows = (res.rows || res.data?.rows || res.data || []).filter((item: any) => Number(item.status) === 0);
+    allProductCategories.value = rows;
+    productCategories.value = rows.filter((item: any) => isTopCategory(item)).sort((a: any, b: any) => Number(a.sort || 0) - Number(b.sort || 0));
+  } catch (err) {
+    console.error('Failed to load product categories:', err);
+    allProductCategories.value = [];
+    productCategories.value = [];
+  }
+};
+
+const isTopCategory = (category: any) => {
+  return category.parentId === undefined || category.parentId === null || Number(category.parentId) === 0;
+};
+
+const getCategoryAndChildrenIds = (categoryId: string | number): string[] => {
+  const ids = new Set<string>([String(categoryId)]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    allProductCategories.value.forEach((item: any) => {
+      if (!ids.has(String(item.categoryId)) && ids.has(String(item.parentId))) {
+        ids.add(String(item.categoryId));
+        changed = true;
+      }
+    });
+  }
+  return Array.from(ids);
 };
 
 const fetchWalletBalance = async () => {
@@ -571,15 +608,22 @@ const fetchWalletBalance = async () => {
 const fetchProducts = async () => {
   loadingProducts.value = true;
   try {
-    const res: any = await listSalesProducts();
+    const query: Record<string, any> = {
+      productMode: 1,
+      insureMode: 1,
+      paymentMode: 1
+    };
+
+    const res: any = await listSalesProducts(query);
     let allProducts = res.rows || res.data?.rows || [];
 
     if (activeCategory.value !== 0 && activeCategory.value !== '0') {
-      allProducts = allProducts.filter((p: any) => p.productType === activeCategory.value);
+      const categoryIds = getCategoryAndChildrenIds(activeCategory.value);
+      allProducts = allProducts.filter((p: any) => categoryIds.includes(String(p.categoryId)));
     }
 
-    // 🌟 核心过滤：仅展示 productMode=1 (卡单) + insureMode=1 (直降) + paymentMode=1 (余额支付) 的产品
-    allProducts = allProducts.filter((p: any) => p.productMode === 1 && p.insureMode === 1 && p.paymentMode === 1);
+    // 仅展示 productMode=1（卡单）+ insureMode=1（直降）+ paymentMode=1（余额支付）的产品，兼容后端返回字符串枚举。
+    allProducts = allProducts.filter((p: any) => Number(p.productMode) === 1 && Number(p.insureMode) === 1 && Number(p.paymentMode) === 1);
 
     productList.value = allProducts;
   } catch (err) {
@@ -614,13 +658,14 @@ const handleProductClick = (product: any) => {
     return;
   }
   currentProduct.value = product;
-  showBatchDrawer.value = true;
+  batchDrawerVisible.value = true;
   wizardStep.value = 1;
   uploadedFile.value = null;
 };
 
 onMounted(() => {
   getDictsList();
+  fetchProductCategories();
   fetchProducts();
   fetchWalletBalance();
 });

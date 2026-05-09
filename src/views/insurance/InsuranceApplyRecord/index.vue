@@ -68,7 +68,7 @@
         <el-table-column label="登记保费" align="center" prop="premium" width="120" />
         <el-table-column label="订单状态" align="center" prop="status" width="120">
           <template #default="scope">
-            <dict-tag :options="insurance_apply_status" :value="scope.row.status" />
+            <el-tag :type="getApplyStatusTagType(scope.row.status)">{{ getApplyStatusLabel(scope.row.status) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="结算状态" align="center" prop="commissionStatus" width="120">
@@ -81,14 +81,18 @@
             <span>{{ parseTime(scope.row.createTime, '{y}-{m}-{d}') }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" align="center" fixed="right" min-width="160" class-name="small-padding fixed-width">
+        <el-table-column label="操作" align="center" fixed="right" min-width="260" class-name="small-padding fixed-width">
           <template #default="scope">
             <el-button link type="primary" icon="View" @click="openDetailDrawer(scope.row)">详情</el-button>
+            <el-button v-if="canGoPayment(scope.row)" link type="warning" icon="Wallet" @click="handleGoPayment(scope.row)">去支付</el-button>
+            <el-button v-if="canCancelOrder(scope.row)" link type="danger" icon="CircleClose" @click="handleCancelOrder(scope.row)"
+              >取消订单</el-button
+            >
             <el-button
               link
               type="primary"
               icon="Check"
-              :disabled="scope.row.status == 0"
+              :disabled="isApproveDisabled(scope.row)"
               @click="handleApprove(scope.row)"
               v-hasPermi="['insurance:InsuranceApplyRecord:edit']"
               >审批</el-button
@@ -128,7 +132,7 @@
             <el-table-column label="被保人" align="center" prop="insuredName" width="200" />
             <el-table-column label="子单状态" align="center" prop="status" width="200">
               <template #default="scope">
-                <dict-tag :options="insurance_apply_status" :value="scope.row.status" />
+                <el-tag :type="getApplyStatusTagType(scope.row.status)">{{ getApplyStatusLabel(scope.row.status) }}</el-tag>
               </template>
             </el-table-column>
             <el-table-column label="操作" align="center">
@@ -195,11 +199,12 @@
 </template>
 
 <script setup name="InsuranceApplyRecord" lang="ts">
-import { listInsuranceApplyRecord, getInsuranceApplyRecord, confirmPay } from '@/api/insurance/InsuranceApplyRecord';
+import { listInsuranceApplyRecord, getInsuranceApplyRecord, confirmPay, cancelInsuranceApplyRecord } from '@/api/insurance/InsuranceApplyRecord';
 import { InsuranceApplyRecordVO, InsuranceApplyRecordQuery, InsuranceApplyRecordForm } from '@/api/insurance/InsuranceApplyRecord/types';
 import request from '@/utils/request';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
+const router = useRouter();
 const { insurance_apply_status, insurance_commission_status, insurance_id_type, insurance_relationship_to_insured } = toRefs<any>(
   proxy?.useDict('insurance_apply_status', 'insurance_commission_status', 'insurance_id_type', 'insurance_relationship_to_insured')
 );
@@ -264,6 +269,63 @@ const resetQuery = () => {
 /** 多选框选中数据 */
 const handleSelectionChange = (selection: InsuranceApplyRecordVO[]) => {
   // 保持 RUOYI 默认提供的选择逻辑，如果后续需要导出勾选项会用到
+};
+
+const canGoPayment = (row: InsuranceApplyRecordVO) => {
+  const status = Number(row.status);
+  return Number(row.insureMode) === 1 && Number(row.paymentMode) === 1 && (status === 1 || status === 3);
+};
+
+const canCancelOrder = (row: InsuranceApplyRecordVO) => {
+  return Number(row.status) === 1 || canGoPayment(row);
+};
+
+const isApproveDisabled = (row: InsuranceApplyRecordVO) => {
+  const status = Number(row.status);
+  return status === 0 || status === 4;
+};
+
+const applyStatusFallback: Record<string, { label: string; type: 'primary' | 'success' | 'info' | 'warning' | 'danger' }> = {
+  '0': { label: '已支付', type: 'success' },
+  '1': { label: '未支付', type: 'danger' },
+  '2': { label: '待录入', type: 'primary' },
+  '3': { label: '待支付', type: 'warning' },
+  '4': { label: '已取消', type: 'info' }
+};
+
+const getApplyStatusOption = (status: number | string) => {
+  return insurance_apply_status.value?.find((item: DictDataOption) => String(item.value) === String(status));
+};
+
+const getApplyStatusLabel = (status: number | string) => {
+  const statusKey = String(status);
+  return getApplyStatusOption(status)?.label || applyStatusFallback[statusKey]?.label || statusKey;
+};
+
+const getApplyStatusTagType = (status: number | string) => {
+  const option = getApplyStatusOption(status);
+  const optionType = option?.elTagType;
+  if (optionType && ['primary', 'success', 'info', 'warning', 'danger'].includes(optionType)) {
+    return optionType;
+  }
+  return applyStatusFallback[String(status)]?.type || 'info';
+};
+
+const handleGoPayment = (row: InsuranceApplyRecordVO) => {
+  router.push({ path: '/insurance/tenant-product/payment', query: { orderNo: row.orderNo } });
+};
+
+const handleCancelOrder = async (row: InsuranceApplyRecordVO) => {
+  await proxy?.$modal.confirm(`确认要取消订单"${row.orderNo}"吗？`);
+  await cancelInsuranceApplyRecord({
+    id: row.id,
+    orderNo: row.orderNo,
+    productId: row.productId,
+    agentUserId: row.agentUserId,
+    agentDeptId: row.agentDeptId
+  });
+  proxy?.$modal.msgSuccess('订单已取消');
+  await getList();
 };
 
 /** 审批按钮打开弹窗 */

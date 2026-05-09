@@ -95,9 +95,9 @@ const router = useRouter();
 const { t } = useI18n();
 
 const loginForm = ref<LoginData>({
-  tenantId: '000000',
-  username: 'admin',
-  password: 'admin123',
+  tenantId: '',
+  username: '',
+  password: '',
   rememberMe: false,
   code: '',
   uuid: ''
@@ -184,15 +184,19 @@ const getCode = async () => {
 };
 
 const getLoginData = () => {
+  const rememberMe = localStorage.getItem('rememberMe') === 'true';
+  if (!rememberMe) {
+    return;
+  }
   const tenantId = localStorage.getItem('tenantId');
   const username = localStorage.getItem('username');
   const password = localStorage.getItem('password');
-  const rememberMe = localStorage.getItem('rememberMe');
   loginForm.value = {
-    tenantId: tenantId === null ? String(loginForm.value.tenantId) : tenantId,
-    username: username === null ? String(loginForm.value.username) : username,
-    password: password === null ? String(loginForm.value.password) : String(password),
-    rememberMe: rememberMe === null ? false : Boolean(rememberMe)
+    ...loginForm.value,
+    tenantId: tenantId ?? '',
+    username: username ?? '',
+    password: password ?? '',
+    rememberMe
   } as LoginData;
 };
 
@@ -204,9 +208,6 @@ const initTenantList = async () => {
   tenantEnabled.value = data.tenantEnabled === undefined ? true : data.tenantEnabled;
   if (tenantEnabled.value) {
     tenantList.value = data.voList;
-    if (tenantList.value != null && tenantList.value.length !== 0) {
-      loginForm.value.tenantId = tenantList.value[0].tenantId;
-    }
   }
 };
 

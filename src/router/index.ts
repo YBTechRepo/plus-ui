@@ -100,6 +100,37 @@ export const constantRoutes: RouteRecordRaw[] = [
         meta: { title: '通知公告', icon: 'message' }
       }
     ]
+  },
+  {
+    path: '/insurance/tenant-product',
+    component: Layout,
+    hidden: true,
+    children: [
+      {
+        path: 'detail',
+        component: () => import('@/views/insurance/InsuranceTenantProduct/detail.vue'),
+        name: 'InsuranceTenantProductDetail',
+        meta: { title: '产品详情', activeMenu: '/insurance/InsuranceTenantProduct' }
+      },
+      {
+        path: 'apply',
+        component: () => import('@/views/insurance/InsuranceTenantProduct/apply.vue'),
+        name: 'InsuranceTenantProductApply',
+        meta: { title: '填写投保信息', activeMenu: '/insurance/InsuranceTenantProduct' }
+      },
+      {
+        path: 'payment',
+        component: () => import('@/views/insurance/InsuranceTenantProduct/payment.vue'),
+        name: 'InsuranceTenantProductPayment',
+        meta: { title: '收银台', activeMenu: '/insurance/InsuranceTenantProduct' }
+      },
+      {
+        path: 'payment-success',
+        component: () => import('@/views/insurance/InsuranceTenantProduct/payment-success.vue'),
+        name: 'InsuranceTenantProductPaymentSuccess',
+        meta: { title: '支付成功', activeMenu: '/insurance/InsuranceTenantProduct' }
+      }
+    ]
   }
 ];
 
