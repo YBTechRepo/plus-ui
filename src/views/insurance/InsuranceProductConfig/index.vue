@@ -16,9 +16,15 @@
               </el-select>
             </el-form-item>
             <el-form-item label="产品类型" prop="productType">
-              <el-select v-model="queryParams.productType" placeholder="请选择产品类型" clearable >
-                <el-option v-for="dict in insurance_product_type" :key="dict.value" :label="dict.label" :value="dict.value"/>
-              </el-select>
+              <el-tree-select
+                v-model="queryParams.productType"
+                :data="categoryOptions"
+                :props="{ value: 'categoryId', label: 'categoryName', children: 'children' }"
+                value-key="categoryId"
+                check-strictly
+                clearable
+                placeholder="请选择产品类型"
+              />
             </el-form-item>
             <el-form-item>
               <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
@@ -160,14 +166,14 @@
               </el-col>
               <el-col :span="12">
                 <el-form-item label="投保模式" prop="product.insureMode">
-                  <el-select v-model="form.product.insureMode" placeholder="请选择投保模式" class="w-full">
+                  <el-select v-model="form.product.insureMode" placeholder="请选择投保模式" class="w-full" :disabled="isCardSecretProductMode">
                     <el-option v-for="dict in insurance_product_insure_mode" :key="dict.value" :label="dict.label" :value="parseInt(dict.value)" />
                   </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="支付模式" prop="product.paymentMode">
-                  <el-select v-model="form.product.paymentMode" placeholder="请选择支付模式" class="w-full">
+                  <el-select v-model="form.product.paymentMode" placeholder="请选择支付模式" class="w-full" :disabled="isCardSecretProductMode">
                     <el-option v-for="dict in insurance_product_payment_mode" :key="dict.value" :label="dict.label" :value="parseInt(dict.value)" />
                   </el-select>
                 </el-form-item>
@@ -219,7 +225,51 @@
             </el-row>
           </el-tab-pane>
 
-          <el-tab-pane label="保障责任" name="liability" v-if="!isRegularProduct">
+          <el-tab-pane label="卡密配置" name="cardSpecs" v-if="isCardSecretProduct">
+            <el-alert title="卡密产品按商品规格售卖，规格配置售价和库存；运费绑定到产品，移动端购买时用户必须选择一个启用规格。" type="info" show-icon class="mb-4" />
+            <el-form-item label="运费配置" prop="product.freight">
+              <div class="freight-config product-freight-config">
+                <el-select v-model="form.product.freightPayType" class="freight-type" @change="handleFreightPayTypeChange">
+                  <el-option label="线上支付" value="prepaid" />
+                  <el-option label="到付" value="collect" />
+                </el-select>
+                <el-input-number
+                  v-model="form.product.freight"
+                  :min="0"
+                  :precision="2"
+                  :disabled="form.product.freightPayType === 'collect'"
+                  class="freight-amount"
+                />
+              </div>
+            </el-form-item>
+            <el-button type="primary" plain icon="Plus" @click="addCardSpec" class="mb-2">新增商品规格</el-button>
+            <el-table :data="form.cardSpecs" border size="small">
+              <el-table-column label="排序" width="90">
+                <template #default="scope"><el-input-number v-model="scope.row.sort" :controls="false" class="w-full" /></template>
+              </el-table-column>
+              <el-table-column label="规格名称" min-width="180">
+                <template #default="scope"><el-input v-model="scope.row.specName" placeholder="如：基础版 / 尊享版" /></template>
+              </el-table-column>
+              <el-table-column label="售价" width="150">
+                <template #default="scope"><el-input-number v-model="scope.row.price" :min="0" :precision="2" class="w-full" /></template>
+              </el-table-column>
+              <el-table-column label="库存" width="130">
+                <template #default="scope"><el-input-number v-model="scope.row.stock" :min="0" :precision="0" class="w-full" /></template>
+              </el-table-column>
+              <el-table-column label="状态" width="120">
+                <template #default="scope">
+                  <el-switch v-model="scope.row.status" :active-value="0" :inactive-value="1" active-text="启用" inactive-text="停用" inline-prompt />
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="80" align="center">
+                <template #default="scope">
+                  <el-button type="danger" icon="Delete" circle @click="removeCardSpec(scope.$index)" />
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-tab-pane>
+
+          <el-tab-pane label="保障责任" name="liability" v-if="!isRegularProduct && !isCardSecretProduct">
             <el-button type="primary" plain icon="Plus" @click="addLiability" class="mb-2">新增保障责任</el-button>
             <el-table :data="form.liabilityList" border size="small">
               <el-table-column label="排序" width="90">
@@ -242,7 +292,7 @@
             </el-table>
           </el-tab-pane>
 
-          <el-tab-pane label="规则与条款" name="rules" v-if="!isRegularProduct">
+          <el-tab-pane label="规则与条款" name="rules" v-if="!isRegularProduct && !isCardSecretProduct">
             <el-divider content-position="left">投保须知</el-divider>
             <el-button type="success" plain icon="Plus" @click="addNotice" class="mb-2">新增投保须知</el-button>
             <el-table :data="form.insureNotice" border size="small" class="mb-4">
@@ -285,10 +335,11 @@
           </el-tab-pane>
 
           <el-tab-pane label="展示物料" name="images" v-if="!isRegularProduct">
-            <el-alert title="图片将以 JSON 数组格式安全存入数据库附属表中" type="info" show-icon class="mb-4" />
-            <el-form-item label="产品特点图">
+            <el-alert :title="isCardSecretProduct ? '卡密产品仅展示头图和产品详情图，详情图将存入产品特点图字段' : '图片将以 JSON 数组格式安全存入数据库附属表中'" type="info" show-icon class="mb-4" />
+            <el-form-item :label="isCardSecretProduct ? '产品详情图' : '产品特点图'">
               <image-upload v-model="featureImagesStr" :limit="5" />
             </el-form-item>
+            <template v-if="!isCardSecretProduct">
             <el-divider />
             <el-form-item label="理赔流程图">
               <image-upload v-model="claimImagesStr" :limit="3" />
@@ -318,9 +369,20 @@
                 </template>
               </el-table-column>
             </el-table>
+            </template>
           </el-tab-pane>
 
-          <el-tab-pane label="服务费配置" name="serviceFee">
+          <el-tab-pane label="朋友圈素材" name="marketing" v-if="!isCardSecretProduct">
+            <el-alert title="朋友圈营销素材将随产品完整配置保存，图片以 JSON 数组格式存储" type="info" show-icon class="mb-4" />
+            <el-form-item label="朋友圈文案" prop="marketingCopy">
+              <el-input v-model="form.marketingCopy" type="textarea" :rows="6" maxlength="2000" show-word-limit placeholder="请输入朋友圈推广文案" />
+            </el-form-item>
+            <el-form-item label="素材图片" prop="marketingImages">
+              <image-upload v-model="marketingImagesStr" :limit="9" />
+            </el-form-item>
+          </el-tab-pane>
+
+          <el-tab-pane label="服务费配置" name="serviceFee" v-if="!isCardSecretProduct">
             <el-alert type="info" show-icon class="mb-4">
               <template #title>
                 服务费比例识别规则：每个时间段内应有且仅有一个生效费率。时间段不允许重叠或屑断。费率变动时，请将旧记录的失效时间修改为变动前一天，再新增一条记录。
@@ -393,7 +455,6 @@ import { listInsuranceProductCategory } from '@/api/insurance/insuranceProductCa
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const {
-  insurance_product_type,
   insurance_product_mode,
   insurance_company,
   insurance_product_status,
@@ -401,7 +462,6 @@ const {
   insurance_product_payment_mode
 } = toRefs<any>(
   proxy?.useDict(
-    'insurance_product_type',
     'insurance_product_mode',
     'insurance_company',
     'insurance_product_status',
@@ -428,9 +488,13 @@ const activeTab = ref('basic');
 // 🌟 图片上传组件专用的响应式字符串 (拦截数组转字符串)
 const featureImagesStr = ref('');
 const claimImagesStr = ref('');
+const marketingImagesStr = ref('');
 const marketingTagsArr = ref<string[]>([]);
 const currentCategoryTags = ref<string[]>([]);
 const categoryOptions = ref<any[]>([]);
+const CARD_SECRET_PRODUCT_MODE = 3;
+const CARD_SECRET_INSURE_MODE = 2;
+const BALANCE_PAYMENT_MODE = 1;
 
 // 🌟 重构超级大对象的初始值
 const initFormData: any = {
@@ -450,6 +514,8 @@ const initFormData: any = {
     sort: 0,
     insureMode: undefined,
     paymentMode: undefined,
+    freightPayType: 'prepaid',
+    freight: 0,
     categoryId: undefined,
     categoryName: undefined,
     marketingTags: undefined
@@ -459,7 +525,10 @@ const initFormData: any = {
   clauseFiles: [],
   featureImages: [],
   claimImages: [],
-  claimInstructions: []
+  marketingCopy: undefined,
+  marketingImages: [],
+  claimInstructions: [],
+  cardSpecs: []
 }
 
 const data = reactive<any>({
@@ -495,10 +564,39 @@ const isRegularProduct = computed(() => {
   return match && match.label === '常规产品';
 });
 
+const isCardSecretProduct = computed(() => {
+  return Number(form.value.product.productMode) === CARD_SECRET_PRODUCT_MODE && Number(form.value.product.insureMode) === CARD_SECRET_INSURE_MODE;
+});
+
+const isCardSecretProductMode = computed(() => {
+  return Number(form.value.product.productMode) === CARD_SECRET_PRODUCT_MODE;
+});
+
+const syncCardSecretModes = () => {
+  if (!isCardSecretProductMode.value) return;
+  form.value.product.insureMode = CARD_SECRET_INSURE_MODE;
+  form.value.product.paymentMode = BALANCE_PAYMENT_MODE;
+};
+
+watch(() => form.value.product.productMode, () => {
+  syncCardSecretModes();
+  if (isCardSecretProductMode.value) {
+    nextTick(() => {
+      InsuranceProductConfigFormRef.value?.clearValidate(['product.insureMode', 'product.paymentMode']);
+    });
+  }
+});
+
 // 如果切换成了常规产品，强制切回“基础信息”页签
-watch(isRegularProduct, (val) => {
-  if (val && activeTab.value !== 'basic') {
+watch([isRegularProduct, isCardSecretProduct], ([regular, cardSecret]) => {
+  const insuranceTabs = ['liability', 'rules'];
+  const cardHiddenTabs = ['marketing', 'serviceFee'];
+  if (regular && activeTab.value !== 'basic') {
     activeTab.value = 'basic';
+    return;
+  }
+  if (cardSecret && (insuranceTabs.includes(activeTab.value) || cardHiddenTabs.includes(activeTab.value))) {
+    activeTab.value = 'cardSpecs';
   }
 });
 
@@ -525,6 +623,7 @@ const reset = () => {
   activeTab.value = 'basic';
   featureImagesStr.value = "";
   claimImagesStr.value = "";
+  marketingImagesStr.value = "";
   marketingTagsArr.value = [];
   currentCategoryTags.value = [];
   serviceFeeList.value = [];
@@ -555,11 +654,15 @@ const handleUpdate = async (row?: InsuranceProductConfigVO) => {
   form.value.insureNotice = form.value.insureNotice || [];
   form.value.clauseFiles = form.value.clauseFiles || [];
   form.value.claimInstructions = form.value.claimInstructions || [];
+  form.value.cardSpecs = form.value.cardSpecs || [];
+  normalizeProductFreight();
 
   // 将后端传来的图片 JSON 数组，用逗号连接成字符串赋值给图片组件
   featureImagesStr.value = form.value.featureImages ? form.value.featureImages.join(',') : '';
   claimImagesStr.value = form.value.claimImages ? form.value.claimImages.join(',') : '';
+  marketingImagesStr.value = form.value.marketingImages ? form.value.marketingImages.join(',') : '';
   marketingTagsArr.value = form.value.product.marketingTags ? form.value.product.marketingTags.split(',') : [];
+  syncCardSecretModes();
 
   // 回显时，根据 categoryId 动态加载该分类的可选标签（包含继承自父分类的标签）
   if (form.value.product.categoryId) {
@@ -592,6 +695,7 @@ const handleUpdate = async (row?: InsuranceProductConfigVO) => {
 
 /** 🌟 提交按钮操作 (组装超级大对象) */
 const submitForm = () => {
+  syncCardSecretModes();
   InsuranceProductConfigFormRef.value?.validate(async (valid: boolean) => {
     if (valid) {
       buttonLoading.value = true;
@@ -599,10 +703,29 @@ const submitForm = () => {
       // 提交前，把组件上的逗号图片字符串，切成数组塞进表单
       form.value.featureImages = featureImagesStr.value ? featureImagesStr.value.split(',') : [];
       form.value.claimImages = claimImagesStr.value ? claimImagesStr.value.split(',') : [];
+      form.value.marketingImages = marketingImagesStr.value ? marketingImagesStr.value.split(',') : [];
       form.value.product.marketingTags = marketingTagsArr.value.length > 0 ? marketingTagsArr.value.join(',') : undefined;
 
+      if (!validateCardSecretConfig()) {
+        buttonLoading.value = false;
+        return;
+      }
+
       // 将 serviceFeeList 序列化为 JSON 字符串
-      if (serviceFeeList.value.length > 0) {
+      if (isCardSecretProduct.value) {
+        normalizeProductFreight();
+        form.value.cardSpecs = buildCardSpecsPayload();
+        const enabledSpecs = form.value.cardSpecs.filter((item: any) => Number(item.status) === 0);
+        const minPrice = Math.min(...enabledSpecs.map((item: any) => Number(item.price || 0)));
+        form.value.product.minPremium = Number.isFinite(minPrice) ? minPrice : form.value.product.minPremium;
+        form.value.claimImages = [];
+        form.value.claimInstructions = [];
+        form.value.insureNotice = [];
+        form.value.clauseFiles = [];
+        form.value.marketingCopy = undefined;
+        form.value.marketingImages = [];
+        form.value.product.serviceFeeConfig = null;
+      } else if (serviceFeeList.value.length > 0) {
         const feePayload = serviceFeeList.value.map((item: any) => ({
           feeRatio: parseFloat((item.feeRatioDisplay / 100).toFixed(4)),
           effectiveStartTime: item.effectiveStartTime,
@@ -660,6 +783,86 @@ const addClaimStep = () => {
 const removeClaimStep = (index: number) => {
   form.value.claimInstructions.splice(index, 1);
 }
+
+const addCardSpec = () => {
+  form.value.cardSpecs.push({
+    specId: `${Date.now()}${Math.floor(Math.random() * 1000)}`,
+    specName: '',
+    price: 0,
+    stock: 0,
+    sort: form.value.cardSpecs.length + 1,
+    status: 0
+  });
+};
+
+const removeCardSpec = (index: number) => {
+  form.value.cardSpecs.splice(index, 1);
+};
+
+const normalizeProductFreight = () => {
+  const product = form.value.product;
+  if (!product.freightPayType && form.value.cardSpecs?.length > 0) {
+    const specFreight = form.value.cardSpecs.find((item: any) => item.freightPayType || item.freight !== undefined);
+    product.freightPayType = specFreight?.freightPayType;
+    product.freight = specFreight?.freight;
+  }
+  product.freightPayType = product.freightPayType === 'collect' ? 'collect' : 'prepaid';
+  if (product.freightPayType === 'collect') {
+    product.freight = 0;
+  }
+};
+
+const handleFreightPayTypeChange = () => {
+  normalizeProductFreight();
+};
+
+const buildCardSpecsPayload = () => {
+  return (form.value.cardSpecs || []).map((item: any) => {
+    return {
+      specId: item.specId,
+      specName: item.specName,
+      price: Number(item.price || 0),
+      stock: Number(item.stock || 0),
+      sort: Number(item.sort || 0),
+      status: Number(item.status ?? 0)
+    };
+  });
+};
+
+const validateCardSecretConfig = () => {
+  if (!isCardSecretProduct.value) return true;
+  const specs = form.value.cardSpecs || [];
+  if (specs.length === 0) {
+    activeTab.value = 'cardSpecs';
+    proxy?.$modal.msgWarning('请至少配置一个商品规格');
+    return false;
+  }
+  normalizeProductFreight();
+  if (form.value.product.freightPayType !== 'collect' && Number(form.value.product.freight) < 0) {
+    activeTab.value = 'cardSpecs';
+    proxy?.$modal.msgWarning('请正确配置产品运费');
+    return false;
+  }
+  const invalidIndex = specs.findIndex((item: any) => {
+    return !item.specName || Number(item.price) < 0 || item.stock === undefined || item.stock === null;
+  });
+  if (invalidIndex > -1) {
+    activeTab.value = 'cardSpecs';
+    proxy?.$modal.msgWarning(`第 ${invalidIndex + 1} 个商品规格未填写完整`);
+    return false;
+  }
+  if (!specs.some((item: any) => Number(item.status) === 0)) {
+    activeTab.value = 'cardSpecs';
+    proxy?.$modal.msgWarning('请至少启用一个商品规格');
+    return false;
+  }
+  if (!featureImagesStr.value) {
+    activeTab.value = 'images';
+    proxy?.$modal.msgWarning('请上传产品详情图');
+    return false;
+  }
+  return true;
+};
 
 // ---------------- 服务费配置 (仅前端展示，暂不提交后端) ----------------
 const serviceFeeList = ref<any[]>([]);
@@ -746,4 +949,16 @@ onMounted(async () => {
 .mb-2 { margin-bottom: 10px; }
 .mb-4 { margin-bottom: 20px; }
 .w-full { width: 100%; }
+.freight-config {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.freight-type {
+  width: 96px;
+  flex: none;
+}
+.freight-amount {
+  flex: 1;
+}
 </style>

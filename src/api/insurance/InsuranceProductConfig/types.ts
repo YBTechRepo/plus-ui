@@ -103,10 +103,31 @@ export interface InsuranceProductConfigVO {
    */
   claimInstructions?: ClaimStepItem[];
 
+  /**
+   * 朋友圈营销文案
+   */
+  marketingCopy?: string;
+
+  /**
+   * 朋友圈营销素材图片
+   */
+  marketingImages?: string[];
+
   insureMode: number;
 
   paymentMode: number;
 
+  /**
+   * 运费支付方式
+   */
+  freightPayType?: 'prepaid' | 'collect';
+
+  /**
+   * 运费金额
+   */
+  freight?: number;
+
+  cardSpecs?: CardSpecItem[];
 }
 
 export interface InsuranceProductConfigForm extends BaseEntity {
@@ -190,14 +211,34 @@ export interface InsuranceProductConfigForm extends BaseEntity {
    */
   claimInstructions?: ClaimStepItem[];
 
+  /**
+   * 朋友圈营销文案
+   */
+  marketingCopy?: string;
+
+  /**
+   * 朋友圈营销素材图片
+   */
+  marketingImages?: string[];
+
   insureMode?: number;
 
   paymentMode?: number;
 
+  /**
+   * 运费支付方式
+   */
+  freightPayType?: 'prepaid' | 'collect';
+
+  /**
+   * 运费金额
+   */
+  freight?: number;
+
+  cardSpecs?: CardSpecItem[];
 }
 
 export interface InsuranceProductConfigQuery extends PageQuery {
-
   /**
    * 产品编码
    */
@@ -256,4 +297,16 @@ export interface ClaimStepItem {
   title?: string;
   content?: string;
   sort?: number;
+}
+
+/**
+ * 卡密产品规格
+ */
+export interface CardSpecItem {
+  specId?: string | number;
+  specName?: string;
+  price?: number;
+  stock?: number;
+  sort?: number;
+  status?: number;
 }

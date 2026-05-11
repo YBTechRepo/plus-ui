@@ -17,7 +17,42 @@
         </template>
       </el-alert>
 
-      <el-form ref="applyFormRef" :model="form" :rules="rules" label-width="120px">
+      <el-form v-if="isCardSecretOrder" ref="cardApplyFormRef" :model="cardForm" :rules="cardRules" label-width="120px">
+        <el-card shadow="never" class="form-section">
+          <template #header><span class="section-title">收货与投保信息</span></template>
+          <el-row :gutter="16">
+            <el-col :xs="24" :md="12">
+              <el-form-item label="收货人姓名" prop="receiverName">
+                <el-input v-model="cardForm.receiverName" placeholder="请输入收货人姓名" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="收货人手机号" prop="receiverMobile">
+                <el-input v-model="cardForm.receiverMobile" placeholder="请输入收货人手机号" maxlength="11" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="所在地区" prop="receiverArea">
+                <el-input v-model="cardForm.receiverArea" placeholder="请输入省市区" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="详细地址" prop="receiverDetailAddress">
+                <el-input v-model="cardForm.receiverDetailAddress" placeholder="请输入街道门牌等详细地址" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="保险公司" prop="selectedCompanyCode">
+                <el-select v-model="cardForm.selectedCompanyCode" placeholder="请选择保险公司" class="w-full">
+                  <el-option v-for="dict in insurance_company" :key="dict.value" :label="dict.label" :value="dict.value" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </el-card>
+      </el-form>
+
+      <el-form v-else ref="applyFormRef" :model="form" :rules="rules" label-width="120px">
         <el-card shadow="never" class="form-section">
           <template #header><span class="section-title">投保人信息</span></template>
           <el-row :gutter="16">
@@ -170,9 +205,12 @@ import { getInsuranceApplyRecordByOrderNo, saveInsureInfo } from '@/api/insuranc
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const router = useRouter();
 const route = useRoute();
+const { insurance_company } = toRefs<any>(proxy?.useDict('insurance_company'));
 const applyFormRef = ref<ElFormInstance>();
+const cardApplyFormRef = ref<ElFormInstance>();
 const submitting = ref(false);
 const orderInfo = ref<any>({});
+const isCardSecretOrder = computed(() => Number(orderInfo.value?.productMode) === 3 && Number(orderInfo.value?.insureMode) === 2);
 
 const certTypeOptions = [
   { label: '身份证', value: '0' },
@@ -213,6 +251,15 @@ const form = reactive({
   insuredList: [initInsured()]
 });
 
+const cardForm = reactive({
+  orderNo: '',
+  receiverName: '',
+  receiverMobile: '',
+  receiverArea: '',
+  receiverDetailAddress: '',
+  selectedCompanyCode: ''
+});
+
 const required = (message: string) => [{ required: true, message, trigger: 'blur' }];
 const rules: any = {
   applicantName: required('请输入投保人姓名'),
@@ -240,6 +287,17 @@ const rules: any = {
   insuredDetailAddress: required('请输入详细地址')
 };
 
+const cardRules: any = {
+  receiverName: required('请输入收货人姓名'),
+  receiverMobile: [
+    { required: true, message: '请输入收货人手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '手机号格式错误', trigger: 'blur' }
+  ],
+  receiverArea: required('请输入所在地区'),
+  receiverDetailAddress: required('请输入详细地址'),
+  selectedCompanyCode: [{ required: true, message: '请选择保险公司', trigger: 'change' }]
+};
+
 const fetchOrder = async () => {
   form.orderNo = (route.query.orderNo as string) || '';
   if (!form.orderNo) {
@@ -249,6 +307,13 @@ const fetchOrder = async () => {
   }
   const res = await getInsuranceApplyRecordByOrderNo(form.orderNo);
   orderInfo.value = res.data || {};
+  cardForm.orderNo = form.orderNo;
+  cardForm.receiverName = orderInfo.value.receiverName || orderInfo.value.customerName || '';
+  cardForm.receiverMobile = orderInfo.value.receiverMobile || orderInfo.value.customerMobile || '';
+  cardForm.selectedCompanyCode = orderInfo.value.selectedCompanyCode || '';
+  if (orderInfo.value.receiverAddress) {
+    cardForm.receiverDetailAddress = orderInfo.value.receiverAddress;
+  }
   if (form.insuredList.length > 0) {
     form.insuredList[0].insuredName = orderInfo.value.customerName || '';
     form.insuredList[0].insuredPhone = orderInfo.value.customerMobile || '';
@@ -264,6 +329,10 @@ const removeInsured = (index: number) => {
 };
 
 const submitForm = () => {
+  if (isCardSecretOrder.value) {
+    submitCardForm();
+    return;
+  }
   applyFormRef.value?.validate(async (valid: boolean) => {
     if (!valid) return;
     submitting.value = true;
@@ -271,6 +340,20 @@ const submitForm = () => {
       await saveInsureInfo(form.orderNo, buildDto());
       proxy?.$modal.msgSuccess('投保信息提交成功');
       router.push({ path: '/insurance/tenant-product/payment', query: { orderNo: form.orderNo } });
+    } finally {
+      submitting.value = false;
+    }
+  });
+};
+
+const submitCardForm = () => {
+  cardApplyFormRef.value?.validate(async (valid: boolean) => {
+    if (!valid) return;
+    submitting.value = true;
+    try {
+      await saveInsureInfo(cardForm.orderNo, buildCardDto());
+      proxy?.$modal.msgSuccess('购买信息提交成功');
+      router.push({ path: '/insurance/tenant-product/payment', query: { orderNo: cardForm.orderNo } });
     } finally {
       submitting.value = false;
     }
@@ -311,6 +394,16 @@ const buildDto = () => {
         insuredAddress: `${insured.insuredArea} ${insured.insuredDetailAddress}`.trim()
       };
     })
+  };
+};
+
+const buildCardDto = () => {
+  return {
+    productMode: 3,
+    selectedCompanyCode: cardForm.selectedCompanyCode,
+    receiverName: cardForm.receiverName,
+    receiverMobile: cardForm.receiverMobile,
+    receiverAddress: `${cardForm.receiverArea} ${cardForm.receiverDetailAddress}`.trim()
   };
 };
 

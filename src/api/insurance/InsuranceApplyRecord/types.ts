@@ -95,6 +95,56 @@ export interface InsuranceApplyRecordVO {
   paymentMode: number;
 
   /**
+   * 产品模式
+   */
+  productMode?: number;
+
+  /**
+   * 卡密规格ID
+   */
+  specId?: string | number;
+
+  /**
+   * 卡密规格名称
+   */
+  specName?: string;
+
+  /**
+   * 商品金额
+   */
+  goodsAmount?: number;
+
+  /**
+   * 运费金额
+   */
+  freightAmount?: number;
+
+  /**
+   * 运费支付方式
+   */
+  freightPayType?: 'prepaid' | 'collect';
+
+  /**
+   * 选择的保险公司
+   */
+  selectedCompanyCode?: string;
+
+  /**
+   * 收货人姓名
+   */
+  receiverName?: string;
+
+  /**
+   * 收货人手机号
+   */
+  receiverMobile?: string;
+
+  /**
+   * 收货地址
+   */
+  receiverAddress?: string;
+
+  /**
    * 是否批量单：0-普通单 1-批次主单 2-批量子单
    */
   isBatch: number;
@@ -196,6 +246,56 @@ export interface InsuranceApplyRecordForm extends BaseEntity {
    * 支付模式 0-常规支付 1-余额代扣
    */
   paymentMode?: number;
+
+  /**
+   * 产品模式
+   */
+  productMode?: number;
+
+  /**
+   * 卡密规格ID
+   */
+  specId?: string | number;
+
+  /**
+   * 卡密规格名称
+   */
+  specName?: string;
+
+  /**
+   * 商品金额
+   */
+  goodsAmount?: number;
+
+  /**
+   * 运费金额
+   */
+  freightAmount?: number;
+
+  /**
+   * 运费支付方式
+   */
+  freightPayType?: 'prepaid' | 'collect';
+
+  /**
+   * 选择的保险公司
+   */
+  selectedCompanyCode?: string;
+
+  /**
+   * 收货人姓名
+   */
+  receiverName?: string;
+
+  /**
+   * 收货人手机号
+   */
+  receiverMobile?: string;
+
+  /**
+   * 收货地址
+   */
+  receiverAddress?: string;
 
   /**
    * 是否批量单：0-普通单 1-批次主单 2-批量子单

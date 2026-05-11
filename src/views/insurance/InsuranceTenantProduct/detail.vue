@@ -7,7 +7,7 @@
             <el-button link icon="ArrowLeft" @click="goBack">返回</el-button>
             <span class="page-title">产品详情</span>
           </div>
-          <el-button type="primary" icon="ShoppingCart" @click="handleBuy" :disabled="!product.id">立即投保</el-button>
+          <el-button type="primary" icon="ShoppingCart" @click="handleBuy" :disabled="!product.id">{{ isCardSecretProduct ? '立即购买' : '立即投保' }}</el-button>
         </div>
       </template>
 
@@ -27,8 +27,8 @@
               <el-tag v-if="product.categoryName" type="info">{{ product.categoryName }}</el-tag>
             </div>
             <div class="price-line">
-              <span class="price">¥{{ formatAmount(product.minPremium) }}</span>
-              <span class="price-label">起</span>
+              <span class="price">{{ displayPrice }}</span>
+              <span class="price-label">{{ isCardSecretProduct ? '' : '起' }}</span>
             </div>
             <div v-if="featureTags.length > 0" class="tag-list">
               <el-tag v-for="tag in featureTags" :key="tag" effect="plain">{{ tag }}</el-tag>
@@ -36,10 +36,24 @@
             <div v-if="descriptionList.length > 0" class="desc-list">
               <div v-for="item in descriptionList" :key="item">· {{ item }}</div>
             </div>
+            <div v-if="isCardSecretProduct" class="spec-section">
+              <div class="spec-title">商品规格</div>
+              <el-radio-group v-model="selectedSpecId" class="spec-list">
+                <el-radio-button v-for="spec in enabledCardSpecs" :key="spec.specId" :label="String(spec.specId)">
+                  {{ spec.specName }} ¥{{ formatAmount(spec.price) }}
+                </el-radio-button>
+              </el-radio-group>
+              <div v-if="selectedSpec" class="spec-meta">
+                <span>运费：{{ isFreightCollect ? '到付' : `¥${formatAmount(productFreight)}` }}</span>
+                <span>库存：{{ selectedSpec.stock ?? 0 }}</span>
+                <span>合计：¥{{ formatAmount(cardOrderAmount) }}</span>
+              </div>
+              <el-empty v-if="enabledCardSpecs.length === 0" description="暂无可购买规格" />
+            </div>
           </div>
         </div>
 
-        <el-row :gutter="12" class="mt-3">
+        <el-row v-if="!isCardSecretProduct" :gutter="12" class="mt-3">
           <el-col :xs="24" :md="12">
             <el-card shadow="never" class="section-card">
               <template #header><span class="section-title">保障责任</span></template>
@@ -65,14 +79,14 @@
         </el-row>
 
         <el-card shadow="never" class="section-card mt-3">
-          <template #header><span class="section-title">产品图文</span></template>
+          <template #header><span class="section-title">{{ isCardSecretProduct ? '产品详情图' : '产品图文' }}</span></template>
           <div v-if="featureImages.length > 0" class="image-list">
             <el-image v-for="img in featureImages" :key="img" :src="img" fit="contain" class="detail-image" lazy />
           </div>
-          <el-empty v-else description="暂无产品图文" />
+          <el-empty v-else :description="isCardSecretProduct ? '暂无产品详情图' : '暂无产品图文'" />
         </el-card>
 
-        <el-row :gutter="12" class="mt-3">
+        <el-row v-if="!isCardSecretProduct" :gutter="12" class="mt-3">
           <el-col :xs="24" :md="12">
             <el-card shadow="never" class="section-card">
               <template #header><span class="section-title">理赔指南</span></template>
@@ -105,18 +119,18 @@
       </template>
     </el-card>
 
-    <el-dialog title="投保意向登记" v-model="leadDialog.visible" width="480px" append-to-body>
+    <el-dialog :title="isCardSecretProduct ? '购买意向登记' : '投保意向登记'" v-model="leadDialog.visible" width="480px" append-to-body>
       <el-form ref="leadFormRef" :model="leadForm" :rules="leadRules" label-width="110px">
-        <el-form-item label="被保人姓名" prop="customerName">
-          <el-input v-model="leadForm.customerName" placeholder="请输入被保人姓名" />
+        <el-form-item :label="isCardSecretProduct ? '联系人姓名' : '被保人姓名'" prop="customerName">
+          <el-input v-model="leadForm.customerName" :placeholder="isCardSecretProduct ? '请输入联系人姓名' : '请输入被保人姓名'" />
         </el-form-item>
-        <el-form-item label="被保人手机号" prop="customerMobile">
-          <el-input v-model="leadForm.customerMobile" placeholder="请输入被保人手机号" maxlength="11" />
+        <el-form-item :label="isCardSecretProduct ? '联系人手机号' : '被保人手机号'" prop="customerMobile">
+          <el-input v-model="leadForm.customerMobile" :placeholder="isCardSecretProduct ? '请输入联系人手机号' : '请输入被保人手机号'" maxlength="11" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="leadDialog.visible = false">取消</el-button>
-        <el-button type="primary" :loading="leadDialog.loading" @click="submitLeadForm">确认投保</el-button>
+        <el-button type="primary" :loading="leadDialog.loading" @click="submitLeadForm">{{ isCardSecretProduct ? '确认购买' : '确认投保' }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -134,6 +148,8 @@ const { insurance_company, insurance_product_mode } = toRefs<any>(proxy?.useDict
 
 const loading = ref(false);
 const productData = ref<any>({});
+const selectedSpecId = ref('');
+let fetchSeq = 0;
 const leadFormRef = ref<ElFormInstance>();
 const leadDialog = reactive({ visible: false, loading: false });
 const leadForm = reactive({ customerName: '', customerMobile: '' });
@@ -149,6 +165,7 @@ const leadRules = {
 };
 
 const product = computed(() => productData.value?.product || {});
+const isCardSecretProduct = computed(() => Number(product.value?.productMode) === 3 && Number(product.value?.insureMode) === 2);
 const liabilityList = computed(() => productData.value?.liabilityList || []);
 const insureNotice = computed(() => normalizeArray(productData.value?.insureNotice));
 const featureImages = computed(() => normalizeArray(productData.value?.featureImages));
@@ -158,6 +175,29 @@ const clauseFiles = computed(() => normalizeArray(productData.value?.clauseFiles
 const featureTags = computed(() => splitText(product.value?.productFeatures, /[,，]/));
 const descriptionList = computed(() => splitText(product.value?.description, '。'));
 const productImage = computed(() => product.value?.imgUrlUrl || productData.value?.imgUrl || product.value?.imgUrl || '');
+const cardSpecs = computed(() => normalizeArray(productData.value?.cardSpecs));
+const enabledCardSpecs = computed(() => {
+  return cardSpecs.value
+    .filter((item) => Number(item.status) === 0)
+    .sort((a, b) => Number(a.sort || 0) - Number(b.sort || 0));
+});
+const selectedSpec = computed(() => enabledCardSpecs.value.find((item) => String(item.specId) === selectedSpecId.value));
+const productFreightPayType = computed(() => product.value?.freightPayType || selectedSpec.value?.freightPayType || 'prepaid');
+const productFreight = computed(() => Number(product.value?.freight ?? selectedSpec.value?.freight ?? 0));
+const isFreightCollect = computed(() => productFreightPayType.value === 'collect');
+const selectedSpecFreight = computed(() => {
+  if (!selectedSpec.value || isFreightCollect.value) return 0;
+  return productFreight.value;
+});
+const cardOrderAmount = computed(() => Number(selectedSpec.value?.price || 0) + selectedSpecFreight.value);
+const displayPrice = computed(() => {
+  if (!isCardSecretProduct.value) return `¥${formatAmount(product.value?.minPremium)}`;
+  if (enabledCardSpecs.value.length === 0) return '暂无报价';
+  const prices = enabledCardSpecs.value.map((item) => Number(item.price || 0));
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  return min === max ? `¥${formatAmount(min)}` : `¥${formatAmount(min)} - ¥${formatAmount(max)}`;
+});
 
 const normalizeArray = (raw: any): any[] => {
   if (!raw) return [];
@@ -180,19 +220,24 @@ const splitText = (raw: string | undefined, separator: string | RegExp) => {
 
 const formatAmount = (amount: any) => Number(amount || 0).toFixed(2);
 
-const fetchData = async () => {
-  const id = route.query.id as string;
+const fetchData = async (id: string) => {
   if (!id) {
     proxy?.$modal.msgError('缺少产品ID');
     goBack();
     return;
   }
+  const currentSeq = ++fetchSeq;
   loading.value = true;
+  productData.value = {};
   try {
     const res: any = await getProductFull(id);
+    if (currentSeq !== fetchSeq) return;
     productData.value = res.data || res || {};
+    selectedSpecId.value = String(enabledCardSpecs.value[0]?.specId || '');
   } finally {
-    loading.value = false;
+    if (currentSeq === fetchSeq) {
+      loading.value = false;
+    }
   }
 };
 
@@ -201,6 +246,10 @@ const goBack = () => {
 };
 
 const handleBuy = () => {
+  if (isCardSecretProduct.value && !selectedSpec.value) {
+    proxy?.$modal.msgWarning('请选择商品规格');
+    return;
+  }
   leadDialog.visible = true;
 };
 
@@ -224,11 +273,22 @@ const submitLeadForm = () => {
         agentUserId: user.userId || '',
         agentDeptId: user.agentDeptId || user.deptId || '',
         status: 1,
-        premium: Number(currentProduct.minPremium || 0),
+        premium: isCardSecretProduct.value ? cardOrderAmount.value : Number(currentProduct.minPremium || 0),
         paymentMode: currentProduct.paymentMode,
-        insureMode: currentProduct.insureMode
+        insureMode: currentProduct.insureMode,
+        productMode: currentProduct.productMode,
+        specId: selectedSpec.value?.specId,
+        specName: selectedSpec.value?.specName,
+        goodsAmount: isCardSecretProduct.value ? Number(selectedSpec.value?.price || 0) : undefined,
+        freightPayType: isCardSecretProduct.value ? productFreightPayType.value : undefined,
+        freightAmount: isCardSecretProduct.value ? selectedSpecFreight.value : undefined
       });
       leadDialog.visible = false;
+
+      if (isCardSecretProduct.value) {
+        router.push({ path: '/insurance/tenant-product/apply', query: { orderNo } });
+        return;
+      }
 
       if (Number(currentProduct.productMode) === 1 && Number(currentProduct.insureMode) === 1) {
         router.push({ path: '/insurance/tenant-product/apply', query: { orderNo } });
@@ -278,9 +338,13 @@ const openFile = (url: string) => {
   if (url) window.open(url, '_blank');
 };
 
-onMounted(() => {
-  fetchData();
-});
+watch(
+  () => route.query.id,
+  (id) => {
+    fetchData(Array.isArray(id) ? id[0] : id || '');
+  },
+  { immediate: true }
+);
 </script>
 
 <style scoped lang="scss">
@@ -348,6 +412,29 @@ onMounted(() => {
 .desc-list {
   margin-top: 12px;
   line-height: 1.8;
+}
+
+.spec-section {
+  margin-top: 18px;
+}
+
+.spec-title {
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.spec-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.spec-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 12px;
+  color: var(--el-text-color-secondary);
 }
 
 .section-card {

@@ -133,9 +133,7 @@
                       <image-preview :src="scope.row.imgUrl" :width="56" :height="56" />
                     </el-descriptions-item>
                     <el-descriptions-item label="投保链接" :span="2">
-                      <el-link v-if="scope.row.proposalUrl" type="primary" :href="scope.row.proposalUrl" target="_blank" class="proposal-link">
-                        {{ scope.row.proposalUrl }}
-                      </el-link>
+                      <el-link v-if="scope.row.proposalUrl" type="primary" :href="scope.row.proposalUrl" target="_blank">点击投保</el-link>
                       <span v-else>-</span>
                     </el-descriptions-item>
                     <el-descriptions-item label="产品特点" :span="3">{{ scope.row.description || '-' }}</el-descriptions-item>
@@ -185,6 +183,7 @@
                   <el-button link type="primary" icon="MoreFilled">更多</el-button>
                   <template #dropdown>
                     <el-dropdown-menu>
+                      <el-dropdown-item icon="Picture" @click="handleViewMarketingMaterial(scope.row)">营销素材</el-dropdown-item>
                       <el-dropdown-item icon="Tickets" @click="handleViewServiceFee(scope.row)">服务费详情</el-dropdown-item>
                       <el-dropdown-item icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['insurance:InsuranceTenantProduct:edit']">
                         状态修改
@@ -331,6 +330,64 @@
       </template>
     </el-dialog>
 
+    <!-- 朋友圈营销素材弹窗 -->
+    <el-dialog title="朋友圈营销素材预览" v-model="marketingMaterialDialog.visible" width="760px" append-to-body class="moments-dialog">
+      <div v-if="marketingMaterialDialog.loading" style="text-align: center; padding: 30px">
+        <el-icon class="is-loading" size="30"><Loading /></el-icon>
+        <div style="margin-top: 8px; color: #999">加载中...</div>
+      </div>
+      <template v-else>
+        <el-empty v-if="!hasMarketingMaterial" description="暂无营销素材" />
+        <div v-else class="moments-preview">
+          <div class="moments-phone">
+            <div class="moments-cover">
+              <div class="moments-cover-title">朋友圈</div>
+              <div class="moments-profile">
+                <span class="moments-profile-name">产品营销号</span>
+                <div class="moments-profile-avatar">{{ marketingAvatarText }}</div>
+              </div>
+            </div>
+            <div class="moments-feed">
+              <div class="moments-post">
+                <div class="moments-avatar">{{ marketingAvatarText }}</div>
+                <div class="moments-post-body">
+                  <div class="moments-nickname">{{ marketingMaterialDialog.productName || '保险产品' }}</div>
+                  <div v-if="marketingMaterialDialog.marketingCopy" class="moments-copy">{{ marketingMaterialDialog.marketingCopy }}</div>
+                  <div v-if="marketingMaterialDialog.marketingImages.length > 0" class="moments-grid" :class="`count-${marketingMaterialDialog.marketingImages.length}`">
+                    <el-image
+                      v-for="img in marketingMaterialDialog.marketingImages"
+                      :key="img"
+                      :src="img"
+                      fit="cover"
+                      class="moments-image"
+                      :preview-src-list="marketingMaterialDialog.marketingImages"
+                      preview-teleported
+                    />
+                  </div>
+                  <div v-if="marketingMaterialDialog.marketingImages.length > 0" class="moments-save-tip">点击图片预览后可长按或右键保存</div>
+                  <div class="moments-meta">
+                    <span>刚刚</span>
+                    <button type="button" class="moments-more" aria-label="朋友圈操作">
+                      <span></span>
+                      <span></span>
+                    </button>
+                  </div>
+                  <div class="moments-actions">
+                    <span>赞</span>
+                    <span>评论</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+      <template #footer>
+        <el-button icon="CopyDocument" :disabled="!marketingMaterialDialog.marketingCopy" @click="copyMarketingCopy">复制文案</el-button>
+        <el-button @click="marketingMaterialDialog.visible = false">关 闭</el-button>
+      </template>
+    </el-dialog>
+
     <batch-insurance-drawer v-model="batchDrawerVisible" :product="currentBatchProduct" />
   </div>
 </template>
@@ -345,7 +402,7 @@ import {
   addInsuranceTenantProductBatch,
   listMarketProduct
 } from '@/api/insurance/InsuranceTenantProduct';
-import { getServiceFeeConfig } from '@/api/insurance/InsuranceProductConfig';
+import { getProductFull, getServiceFeeConfig } from '@/api/insurance/InsuranceProductConfig';
 import type { InsuranceProductConfigVO } from '@/api/insurance/InsuranceProductConfig/types';
 import { InsuranceTenantProductVO, InsuranceTenantProductQuery, InsuranceTenantProductForm } from '@/api/insurance/InsuranceTenantProduct/types';
 import { listInsuranceProductCategory } from '@/api/insurance/insuranceProductCategory';
@@ -385,6 +442,90 @@ const serviceFeeDialog = reactive({
   productName: '',
   configList: [] as any[]
 });
+
+/** 朋友圈营销素材弹窗状态 */
+const marketingMaterialDialog = reactive({
+  visible: false,
+  loading: false,
+  productName: '',
+  marketingCopy: '',
+  marketingImages: [] as string[]
+});
+
+const hasMarketingMaterial = computed(() => {
+  return Boolean(marketingMaterialDialog.marketingCopy) || marketingMaterialDialog.marketingImages.length > 0;
+});
+
+const marketingAvatarText = computed(() => {
+  return (marketingMaterialDialog.productName || '保').trim().slice(0, 1);
+});
+
+const normalizeArray = (raw: any): any[] => {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return String(raw)
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+};
+
+/** 查看朋友圈营销素材 */
+const handleViewMarketingMaterial = async (row: InsuranceTenantProductVO) => {
+  marketingMaterialDialog.visible = true;
+  marketingMaterialDialog.loading = true;
+  marketingMaterialDialog.productName = row.productName || '';
+  marketingMaterialDialog.marketingCopy = '';
+  marketingMaterialDialog.marketingImages = [];
+  try {
+    const res: any = await getProductFull(row.productId);
+    const data = res.data || res || {};
+    marketingMaterialDialog.productName = data.product?.productName || row.productName || '';
+    marketingMaterialDialog.marketingCopy = data.marketingCopy || '';
+    marketingMaterialDialog.marketingImages = normalizeArray(data.marketingImages);
+  } finally {
+    marketingMaterialDialog.loading = false;
+  }
+};
+
+const copyMarketingCopy = async () => {
+  if (!marketingMaterialDialog.marketingCopy) return;
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(marketingMaterialDialog.marketingCopy);
+    } else {
+      fallbackCopyText(marketingMaterialDialog.marketingCopy);
+    }
+    proxy?.$modal.msgSuccess('文案已复制');
+  } catch {
+    try {
+      fallbackCopyText(marketingMaterialDialog.marketingCopy);
+      proxy?.$modal.msgSuccess('文案已复制');
+    } catch {
+      proxy?.$modal.msgError('复制失败，请手动选择文案复制');
+    }
+  }
+};
+
+const fallbackCopyText = (text: string) => {
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', 'readonly');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  textarea.style.top = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand('copy');
+  document.body.removeChild(textarea);
+  if (!copied) {
+    throw new Error('copy failed');
+  }
+};
 
 /** 查看服务费详情 */
 const handleViewServiceFee = async (row: InsuranceTenantProductVO) => {
@@ -829,7 +970,7 @@ const submitForm = () => {
 
 /** 查看产品详情 */
 const handleView = (row: InsuranceTenantProductVO) => {
-  if (Number(row.productMode) === 1) {
+  if (Number(row.productMode) === 1 || Number(row.productMode) === 3) {
     proxy?.$router.push({
       path: '/insurance/tenant-product/detail',
       query: { id: row.productId }
@@ -1030,20 +1171,213 @@ onMounted(() => {
   font-size: 12px;
 }
 
-.proposal-link {
-  max-width: 100%;
-  vertical-align: top;
-
-  :deep(.el-link__inner) {
-    display: inline-block;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
 .table-more-actions {
   margin-left: 8px;
+}
+
+:deep(.moments-dialog .el-dialog__body) {
+  padding-top: 8px;
+  background-color: #f5f5f5;
+}
+
+.moments-preview {
+  display: flex;
+  justify-content: center;
+}
+
+.moments-phone {
+  width: min(100%, 420px);
+  overflow: hidden;
+  color: #191919;
+  background-color: #fff;
+  border: 1px solid #e7e7e7;
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgb(0 0 0 / 8%);
+}
+
+.moments-cover {
+  position: relative;
+  height: 168px;
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 12%), rgb(0 0 0 / 42%)),
+    linear-gradient(135deg, #6d8c70 0%, #b7c2a6 52%, #d7d3c3 100%);
+}
+
+.moments-cover-title {
+  padding-top: 16px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.moments-profile {
+  position: absolute;
+  right: 16px;
+  bottom: -22px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.moments-profile-name {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 35%);
+}
+
+.moments-profile-avatar,
+.moments-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  background: #4f7f66;
+}
+
+.moments-profile-avatar {
+  width: 54px;
+  height: 54px;
+  border: 2px solid #fff;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 18%);
+}
+
+.moments-feed {
+  padding: 42px 14px 18px;
+}
+
+.moments-post {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ededed;
+}
+
+.moments-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 4px;
+}
+
+.moments-post-body {
+  min-width: 0;
+}
+
+.moments-nickname {
+  margin-bottom: 6px;
+  color: #576b95;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.moments-copy {
+  color: #111;
+  font-size: 15px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.moments-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 82px);
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.moments-grid.count-1 {
+  grid-template-columns: 188px;
+}
+
+.moments-grid.count-2,
+.moments-grid.count-4 {
+  grid-template-columns: repeat(2, 92px);
+}
+
+.moments-image {
+  width: 82px;
+  height: 82px;
+  background-color: #f0f0f0;
+}
+
+.moments-grid.count-1 .moments-image {
+  width: 188px;
+  height: 188px;
+}
+
+.moments-grid.count-2 .moments-image,
+.moments-grid.count-4 .moments-image {
+  width: 92px;
+  height: 92px;
+}
+
+.moments-save-tip {
+  margin-top: 6px;
+  color: #8a8a8a;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.moments-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  color: #8a8a8a;
+  font-size: 13px;
+}
+
+.moments-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 20px;
+  padding: 0;
+  background-color: #f2f2f2;
+  border: 0;
+  border-radius: 2px;
+  cursor: default;
+}
+
+.moments-more span {
+  width: 4px;
+  height: 4px;
+  margin: 0 2px;
+  background-color: #576b95;
+  border-radius: 50%;
+}
+
+.moments-actions {
+  display: inline-flex;
+  gap: 18px;
+  padding: 7px 12px;
+  margin-top: 6px;
+  color: #576b95;
+  font-size: 13px;
+  background-color: #f5f5f5;
+  border-radius: 2px;
+}
+
+@media (max-width: 520px) {
+  .moments-feed {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .moments-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .moments-image {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+  }
 }
 </style>

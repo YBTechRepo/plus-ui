@@ -18,6 +18,9 @@
             <el-descriptions :column="1" border>
               <el-descriptions-item label="投保人">{{ orderInfo.customerName || '--' }}</el-descriptions-item>
               <el-descriptions-item label="产品名称">{{ orderInfo.productName || '--' }}</el-descriptions-item>
+              <el-descriptions-item v-if="isCardSecretOrder" label="商品规格">{{ orderInfo.specName || '--' }}</el-descriptions-item>
+              <el-descriptions-item v-if="isCardSecretOrder" label="商品金额">¥{{ Number(orderInfo.goodsAmount || 0).toFixed(2) }}</el-descriptions-item>
+              <el-descriptions-item v-if="isCardSecretOrder" label="运费">{{ orderInfo.freightPayType === 'collect' ? '到付' : `¥${Number(orderInfo.freightAmount || 0).toFixed(2)}` }}</el-descriptions-item>
               <el-descriptions-item label="订单编号">{{ orderNo }}</el-descriptions-item>
               <el-descriptions-item label="应付金额">
                 <span class="amount">¥{{ amount.toFixed(2) }}</span>
@@ -64,6 +67,7 @@ const paying = ref(false);
 const orderNo = ref('');
 const orderInfo = ref<any>({});
 const balance = ref(0);
+const isCardSecretOrder = computed(() => Number(orderInfo.value?.productMode) === 3 && Number(orderInfo.value?.insureMode) === 2);
 const amount = computed(() => Number(orderInfo.value?.netPremium ?? orderInfo.value?.premium ?? 0));
 
 const fetchOrder = async () => {

@@ -110,7 +110,7 @@ export const constantRoutes: RouteRecordRaw[] = [
         path: 'detail',
         component: () => import('@/views/insurance/InsuranceTenantProduct/detail.vue'),
         name: 'InsuranceTenantProductDetail',
-        meta: { title: '产品详情', activeMenu: '/insurance/InsuranceTenantProduct' }
+        meta: { title: '产品详情', activeMenu: '/insurance/InsuranceTenantProduct', noCache: true }
       },
       {
         path: 'apply',
