@@ -7,7 +7,9 @@
             <el-button link icon="ArrowLeft" @click="goBack">返回</el-button>
             <span class="page-title">产品详情</span>
           </div>
-          <el-button type="primary" icon="ShoppingCart" @click="handleBuy" :disabled="!product.id">{{ isCardSecretProduct ? '立即购买' : '立即投保' }}</el-button>
+          <el-button type="primary" icon="ShoppingCart" @click="handleBuy" :disabled="!product.id">{{
+            isCardSecretProduct ? '立即购买' : '立即投保'
+          }}</el-button>
         </div>
       </template>
 
@@ -79,7 +81,9 @@
         </el-row>
 
         <el-card shadow="never" class="section-card mt-3">
-          <template #header><span class="section-title">{{ isCardSecretProduct ? '产品详情图' : '产品图文' }}</span></template>
+          <template #header
+            ><span class="section-title">{{ isCardSecretProduct ? '产品详情图' : '产品图文' }}</span></template
+          >
           <div v-if="featureImages.length > 0" class="image-list">
             <el-image v-for="img in featureImages" :key="img" :src="img" fit="contain" class="detail-image" lazy />
           </div>
@@ -125,12 +129,18 @@
           <el-input v-model="leadForm.customerName" :placeholder="isCardSecretProduct ? '请输入联系人姓名' : '请输入被保人姓名'" />
         </el-form-item>
         <el-form-item :label="isCardSecretProduct ? '联系人手机号' : '被保人手机号'" prop="customerMobile">
-          <el-input v-model="leadForm.customerMobile" :placeholder="isCardSecretProduct ? '请输入联系人手机号' : '请输入被保人手机号'" maxlength="11" />
+          <el-input
+            v-model="leadForm.customerMobile"
+            :placeholder="isCardSecretProduct ? '请输入联系人手机号' : '请输入被保人手机号'"
+            maxlength="11"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="leadDialog.visible = false">取消</el-button>
-        <el-button type="primary" :loading="leadDialog.loading" @click="submitLeadForm">{{ isCardSecretProduct ? '确认购买' : '确认投保' }}</el-button>
+        <el-button type="primary" :loading="leadDialog.loading" @click="submitLeadForm">{{
+          isCardSecretProduct ? '确认购买' : '确认投保'
+        }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -140,6 +150,7 @@
 import { getInfo } from '@/api/login';
 import { getProductFull } from '@/api/insurance/InsuranceProductConfig';
 import { addInsuranceApplyRecord } from '@/api/insurance/InsuranceApplyRecord';
+import { addInsuranceCardOrder } from '@/api/insurance/InsuranceCardOrder';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const route = useRoute();
@@ -177,9 +188,7 @@ const descriptionList = computed(() => splitText(product.value?.description, '�
 const productImage = computed(() => product.value?.imgUrlUrl || productData.value?.imgUrl || product.value?.imgUrl || '');
 const cardSpecs = computed(() => normalizeArray(productData.value?.cardSpecs));
 const enabledCardSpecs = computed(() => {
-  return cardSpecs.value
-    .filter((item) => Number(item.status) === 0)
-    .sort((a, b) => Number(a.sort || 0) - Number(b.sort || 0));
+  return cardSpecs.value.filter((item) => Number(item.status) === 0).sort((a, b) => Number(a.sort || 0) - Number(b.sort || 0));
 });
 const selectedSpec = computed(() => enabledCardSpecs.value.find((item) => String(item.specId) === selectedSpecId.value));
 const productFreightPayType = computed(() => product.value?.freightPayType || selectedSpec.value?.freightPayType || 'prepaid');
@@ -262,7 +271,7 @@ const submitLeadForm = () => {
       const user = userRes.data?.user || userRes.user || {};
       const currentProduct = product.value;
       const orderNo = generateOrderNo();
-      await addInsuranceApplyRecord({
+      const orderPayload = {
         orderNo,
         productId: currentProduct.id,
         productCode: currentProduct.productCode,
@@ -281,12 +290,18 @@ const submitLeadForm = () => {
         specName: selectedSpec.value?.specName,
         goodsAmount: isCardSecretProduct.value ? Number(selectedSpec.value?.price || 0) : undefined,
         freightPayType: isCardSecretProduct.value ? productFreightPayType.value : undefined,
-        freightAmount: isCardSecretProduct.value ? selectedSpecFreight.value : undefined
-      });
+        freightAmount: isCardSecretProduct.value ? selectedSpecFreight.value : undefined,
+        payAmount: isCardSecretProduct.value ? cardOrderAmount.value : Number(currentProduct.minPremium || 0)
+      };
+      if (isCardSecretProduct.value) {
+        await addInsuranceCardOrder(orderPayload);
+      } else {
+        await addInsuranceApplyRecord(orderPayload);
+      }
       leadDialog.visible = false;
 
       if (isCardSecretProduct.value) {
-        router.push({ path: '/insurance/tenant-product/apply', query: { orderNo } });
+        router.push({ path: '/insurance/tenant-product/apply', query: { orderNo, orderType: 'card' } });
         return;
       }
 

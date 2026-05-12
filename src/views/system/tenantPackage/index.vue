@@ -54,6 +54,15 @@
             <el-tooltip content="修改" placement="top">
               <el-button v-hasPermi="['system:tenantPackage:edit']" link type="primary" icon="Edit" @click="handleUpdate(scope.row)"></el-button>
             </el-tooltip>
+            <el-tooltip content="批量同步权限" placement="top">
+              <el-button
+                v-hasPermi="['system:tenantPackage:edit']"
+                link
+                type="primary"
+                icon="Refresh"
+                @click="handleSyncPackageRoles(scope.row)"
+              ></el-button>
+            </el-tooltip>
             <el-tooltip content="删除" placement="top">
               <el-button v-hasPermi="['system:tenantPackage:remove']" link type="primary" icon="Delete" @click="handleDelete(scope.row)"></el-button>
             </el-tooltip>
@@ -106,7 +115,8 @@ import {
   delTenantPackage,
   addTenantPackage,
   updateTenantPackage,
-  changePackageStatus
+  changePackageStatus,
+  syncTenantPackageRoles
 } from '@/api/system/tenantPackage';
 import { tenantPackageMenuTreeselect } from '@/api/system/menu';
 import { TenantPkgForm, TenantPkgQuery, TenantPkgVO } from '@/api/system/tenantPackage/types';
@@ -310,6 +320,22 @@ const handleDelete = async (row?: TenantPkgVO) => {
   loading.value = true;
   await getList();
   proxy?.$modal.msgSuccess('删除成功');
+};
+
+/** 批量同步套餐权限到关联租户角色 */
+const handleSyncPackageRoles = async (row: TenantPkgVO) => {
+  try {
+    await proxy?.$modal.confirm(
+      '是否确认将"' + row.packageName + '"套餐权限批量同步到所有使用该套餐的租户角色？系统将按启用的角色模板补齐缺失权限，并移除套餐外权限。'
+    );
+    loading.value = true;
+    const res = await syncTenantPackageRoles(row.packageId);
+    proxy?.$modal.msgSuccess(res.msg || '同步成功');
+  } catch {
+    return;
+  } finally {
+    loading.value = false;
+  }
 };
 
 /** 导出按钮操作 */

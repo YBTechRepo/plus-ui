@@ -58,6 +58,17 @@ export function changePackageStatus(packageId: number | string, status: string) 
   });
 }
 
+// 批量同步套餐权限到使用该套餐的租户角色
+export function syncTenantPackageRoles(packageId: string | number) {
+  return request({
+    url: '/system/tenant/package/syncRoles',
+    method: 'post',
+    data: {
+      packageId
+    }
+  });
+}
+
 // 删除租户套餐
 export function delTenantPackage(packageId: string | number | Array<string | number>) {
   return request({

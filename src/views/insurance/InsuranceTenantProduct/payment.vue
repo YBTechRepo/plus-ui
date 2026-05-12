@@ -16,11 +16,15 @@
           <el-card shadow="never" class="info-card">
             <template #header><span class="section-title">订单信息</span></template>
             <el-descriptions :column="1" border>
-              <el-descriptions-item label="投保人">{{ orderInfo.customerName || '--' }}</el-descriptions-item>
+              <el-descriptions-item :label="isCardSecretOrder ? '联系人' : '投保人'">{{ orderInfo.customerName || '--' }}</el-descriptions-item>
               <el-descriptions-item label="产品名称">{{ orderInfo.productName || '--' }}</el-descriptions-item>
               <el-descriptions-item v-if="isCardSecretOrder" label="商品规格">{{ orderInfo.specName || '--' }}</el-descriptions-item>
-              <el-descriptions-item v-if="isCardSecretOrder" label="商品金额">¥{{ Number(orderInfo.goodsAmount || 0).toFixed(2) }}</el-descriptions-item>
-              <el-descriptions-item v-if="isCardSecretOrder" label="运费">{{ orderInfo.freightPayType === 'collect' ? '到付' : `¥${Number(orderInfo.freightAmount || 0).toFixed(2)}` }}</el-descriptions-item>
+              <el-descriptions-item v-if="isCardSecretOrder" label="商品金额"
+                >¥{{ Number(orderInfo.goodsAmount || 0).toFixed(2) }}</el-descriptions-item
+              >
+              <el-descriptions-item v-if="isCardSecretOrder" label="运费">{{
+                orderInfo.freightPayType === 'collect' ? '到付' : `¥${Number(orderInfo.freightAmount || 0).toFixed(2)}`
+              }}</el-descriptions-item>
               <el-descriptions-item label="订单编号">{{ orderNo }}</el-descriptions-item>
               <el-descriptions-item label="应付金额">
                 <span class="amount">¥{{ amount.toFixed(2) }}</span>
@@ -57,6 +61,7 @@
 import { getInfo } from '@/api/login';
 import { getUserAccount } from '@/api/finance/userAccount';
 import { getInsuranceApplyRecordByOrderNo, payWithBalance } from '@/api/insurance/InsuranceApplyRecord';
+import { getInsuranceCardOrderByOrderNo, payCardOrderWithBalance } from '@/api/insurance/InsuranceCardOrder';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const route = useRoute();
@@ -67,8 +72,20 @@ const paying = ref(false);
 const orderNo = ref('');
 const orderInfo = ref<any>({});
 const balance = ref(0);
-const isCardSecretOrder = computed(() => Number(orderInfo.value?.productMode) === 3 && Number(orderInfo.value?.insureMode) === 2);
-const amount = computed(() => Number(orderInfo.value?.netPremium ?? orderInfo.value?.premium ?? 0));
+const isCardOrderRoute = computed(() => route.query.orderType === 'card');
+const isCardSecretOrder = computed(
+  () => isCardOrderRoute.value || (Number(orderInfo.value?.productMode) === 3 && Number(orderInfo.value?.insureMode) === 2)
+);
+const amount = computed(() => {
+  if (isCardSecretOrder.value) {
+    return Number(
+      orderInfo.value?.payAmount ??
+        orderInfo.value?.premium ??
+        Number(orderInfo.value?.goodsAmount || 0) + Number(orderInfo.value?.freightAmount || 0)
+    );
+  }
+  return Number(orderInfo.value?.netPremium ?? orderInfo.value?.premium ?? 0);
+});
 
 const fetchOrder = async () => {
   orderNo.value = (route.query.orderNo as string) || '';
@@ -77,8 +94,12 @@ const fetchOrder = async () => {
     router.back();
     return;
   }
-  const res = await getInsuranceApplyRecordByOrderNo(orderNo.value);
+  const res = isCardOrderRoute.value ? await getInsuranceCardOrderByOrderNo(orderNo.value) : await getInsuranceApplyRecordByOrderNo(orderNo.value);
   orderInfo.value = res.data || {};
+  if (!orderInfo.value) {
+    proxy?.$modal.msgError('未找到订单');
+    router.back();
+  }
 };
 
 const fetchBalance = async () => {
@@ -101,9 +122,16 @@ const handlePay = async () => {
   }
   paying.value = true;
   try {
-    await payWithBalance({ orderNo: orderNo.value, payAmount: amount.value });
+    if (isCardSecretOrder.value) {
+      await payCardOrderWithBalance({ orderNo: orderNo.value, payAmount: amount.value });
+    } else {
+      await payWithBalance({ orderNo: orderNo.value, payAmount: amount.value });
+    }
     proxy?.$modal.msgSuccess('支付成功');
-    router.push({ path: '/insurance/tenant-product/payment-success', query: { orderNo: orderNo.value } });
+    router.push({
+      path: '/insurance/tenant-product/payment-success',
+      query: { orderNo: orderNo.value, orderType: isCardSecretOrder.value ? 'card' : undefined }
+    });
   } finally {
     paying.value = false;
   }

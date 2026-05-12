@@ -5,9 +5,9 @@
         <div class="page-header">
           <div>
             <el-button link icon="ArrowLeft" @click="router.back()">返回</el-button>
-            <span class="page-title">填写投保信息</span>
+            <span class="page-title">{{ isCardSecretOrder ? '填写购买信息' : '填写投保信息' }}</span>
           </div>
-          <el-button type="primary" :loading="submitting" @click="submitForm">提交投保信息</el-button>
+          <el-button type="primary" :loading="submitting" @click="submitForm">{{ isCardSecretOrder ? '提交购买信息' : '提交投保信息' }}</el-button>
         </div>
       </template>
 
@@ -19,7 +19,7 @@
 
       <el-form v-if="isCardSecretOrder" ref="cardApplyFormRef" :model="cardForm" :rules="cardRules" label-width="120px">
         <el-card shadow="never" class="form-section">
-          <template #header><span class="section-title">收货与投保信息</span></template>
+          <template #header><span class="section-title">收货与购买信息</span></template>
           <el-row :gutter="16">
             <el-col :xs="24" :md="12">
               <el-form-item label="收货人姓名" prop="receiverName">
@@ -44,7 +44,7 @@
             <el-col :xs="24" :md="12">
               <el-form-item label="保险公司" prop="selectedCompanyCode">
                 <el-select v-model="cardForm.selectedCompanyCode" placeholder="请选择保险公司" class="w-full">
-                  <el-option v-for="dict in insurance_company" :key="dict.value" :label="dict.label" :value="dict.value" />
+                  <el-option v-for="dict in insurance_card_company" :key="dict.value" :label="dict.label" :value="dict.value" />
                 </el-select>
               </el-form-item>
             </el-col>
@@ -201,16 +201,20 @@
 
 <script setup name="InsuranceTenantProductApply" lang="ts">
 import { getInsuranceApplyRecordByOrderNo, saveInsureInfo } from '@/api/insurance/InsuranceApplyRecord';
+import { getInsuranceCardOrderByOrderNo, saveCardOrderInfo } from '@/api/insurance/InsuranceCardOrder';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const router = useRouter();
 const route = useRoute();
-const { insurance_company } = toRefs<any>(proxy?.useDict('insurance_company'));
+const { insurance_card_company } = toRefs<any>(proxy?.useDict('insurance_card_company'));
 const applyFormRef = ref<ElFormInstance>();
 const cardApplyFormRef = ref<ElFormInstance>();
 const submitting = ref(false);
 const orderInfo = ref<any>({});
-const isCardSecretOrder = computed(() => Number(orderInfo.value?.productMode) === 3 && Number(orderInfo.value?.insureMode) === 2);
+const isCardOrderRoute = computed(() => route.query.orderType === 'card');
+const isCardSecretOrder = computed(
+  () => isCardOrderRoute.value || (Number(orderInfo.value?.productMode) === 3 && Number(orderInfo.value?.insureMode) === 2)
+);
 
 const certTypeOptions = [
   { label: '身份证', value: '0' },
@@ -305,8 +309,13 @@ const fetchOrder = async () => {
     router.back();
     return;
   }
-  const res = await getInsuranceApplyRecordByOrderNo(form.orderNo);
+  const res = isCardOrderRoute.value ? await getInsuranceCardOrderByOrderNo(form.orderNo) : await getInsuranceApplyRecordByOrderNo(form.orderNo);
   orderInfo.value = res.data || {};
+  if (!orderInfo.value) {
+    proxy?.$modal.msgError('未找到订单');
+    router.back();
+    return;
+  }
   cardForm.orderNo = form.orderNo;
   cardForm.receiverName = orderInfo.value.receiverName || orderInfo.value.customerName || '';
   cardForm.receiverMobile = orderInfo.value.receiverMobile || orderInfo.value.customerMobile || '';
@@ -351,9 +360,9 @@ const submitCardForm = () => {
     if (!valid) return;
     submitting.value = true;
     try {
-      await saveInsureInfo(cardForm.orderNo, buildCardDto());
+      await saveCardOrderInfo(cardForm.orderNo, buildCardDto());
       proxy?.$modal.msgSuccess('购买信息提交成功');
-      router.push({ path: '/insurance/tenant-product/payment', query: { orderNo: cardForm.orderNo } });
+      router.push({ path: '/insurance/tenant-product/payment', query: { orderNo: cardForm.orderNo, orderType: 'card' } });
     } finally {
       submitting.value = false;
     }
