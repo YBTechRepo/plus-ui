@@ -99,6 +99,11 @@ export interface InsuranceProductConfigVO {
   productFeatures?: string;
 
   /**
+   * 服务费配置
+   */
+  serviceFeeConfig?: string;
+
+  /**
    * 理赔说明步骤列表
    */
   claimInstructions?: ClaimStepItem[];
@@ -207,6 +212,11 @@ export interface InsuranceProductConfigForm extends BaseEntity {
   productFeatures?: string;
 
   /**
+   * 服务费配置
+   */
+  serviceFeeConfig?: string;
+
+  /**
    * 理赔说明步骤列表
    */
   claimInstructions?: ClaimStepItem[];
@@ -309,4 +319,12 @@ export interface CardSpecItem {
   stock?: number;
   sort?: number;
   status?: number;
+}
+
+export interface ServiceFeeCommissionSyncResult {
+  productCount: number;
+  tenantCount: number;
+  successCount: number;
+  skippedCount: number;
+  failCount: number;
 }

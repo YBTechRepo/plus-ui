@@ -96,3 +96,25 @@ export function getServiceFeeConfig(id: string | number) {
     method: 'get'
   });
 }
+
+/**
+ * 将产品服务费配置同步到各租户佣金配置
+ * @param productIds 产品ID数组
+ */
+export function syncServiceFeeCommission(productIds: Array<string | number>) {
+  return request({
+    url: '/insurance/InsuranceProductConfig/syncServiceFeeCommission',
+    method: 'post',
+    data: { productIds }
+  });
+}
+
+/**
+ * 将全部产品服务费配置同步到各租户佣金配置
+ */
+export function syncAllServiceFeeCommission() {
+  return request({
+    url: '/insurance/InsuranceProductConfig/syncAllServiceFeeCommission',
+    method: 'post'
+  });
+}

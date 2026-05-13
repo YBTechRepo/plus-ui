@@ -47,6 +47,29 @@
           <el-col :span="1.5">
             <el-button type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete()" v-hasPermi="['insurance:InsuranceProductConfig:remove']">删除</el-button>
           </el-col>
+          <el-col :span="1.5">
+            <el-button
+              type="success"
+              plain
+              icon="Refresh"
+              :disabled="multiple"
+              :loading="buttonLoading"
+              @click="handleSyncCommission"
+              v-hasPermi="['insurance:InsuranceProductConfig:syncCommission']"
+              >同步佣金</el-button
+            >
+          </el-col>
+          <el-col :span="1.5">
+            <el-button
+              type="warning"
+              plain
+              icon="Refresh"
+              :loading="buttonLoading"
+              @click="handleSyncAllCommission"
+              v-hasPermi="['insurance:InsuranceProductConfig:syncCommission']"
+              >同步全部佣金</el-button
+            >
+          </el-col>
           <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
         </el-row>
       </template>
@@ -448,10 +471,17 @@ import {
   delInsuranceProductConfig,
   getProductFull,// 替换原来的 get
   addProductFull,// 替换原来的 add
-  updateProductFull// 替换原来的 update
+  updateProductFull,// 替换原来的 update
+  syncServiceFeeCommission,
+  syncAllServiceFeeCommission
 } from '@/api/insurance/InsuranceProductConfig';
-import { InsuranceProductConfigVO, InsuranceProductConfigQuery } from '@/api/insurance/InsuranceProductConfig/types';
+import {
+  InsuranceProductConfigVO,
+  InsuranceProductConfigQuery,
+  ServiceFeeCommissionSyncResult
+} from '@/api/insurance/InsuranceProductConfig/types';
 import { listInsuranceProductCategory } from '@/api/insurance/insuranceProductCategory';
+import { ElLoading } from 'element-plus';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const {
@@ -761,6 +791,52 @@ const handleDelete = async (row?: InsuranceProductConfigVO) => {
   proxy?.$modal.msgSuccess("删除成功");
   await getList();
 }
+
+/** 同步产品服务费到租户佣金配置 */
+const handleSyncCommission = async () => {
+  if (ids.value.length === 0) {
+    proxy?.$modal.msgWarning('请先选择需要同步佣金的产品');
+    return;
+  }
+  await proxy?.$modal.confirm(`确认将已选 ${ids.value.length} 个产品的服务费配置同步到各租户佣金配置吗？该操作会覆盖租户已有佣金配置。`);
+  buttonLoading.value = true;
+  const loadingInstance = ElLoading.service({
+    lock: true,
+    text: '正在同步产品佣金配置，请稍候...',
+    background: 'rgba(0, 0, 0, 0.7)'
+  });
+  try {
+    const res = await syncServiceFeeCommission(ids.value);
+    const data = (res.data || {}) as ServiceFeeCommissionSyncResult;
+    proxy?.$modal.msgSuccess(
+      `同步完成：成功 ${data.successCount ?? 0} 条，跳过 ${data.skippedCount ?? 0} 条，失败 ${data.failCount ?? 0} 条，影响 ${data.tenantCount ?? 0} 个租户。`
+    );
+  } finally {
+    loadingInstance.close();
+    buttonLoading.value = false;
+  }
+};
+
+/** 同步全部产品服务费到租户佣金配置 */
+const handleSyncAllCommission = async () => {
+  await proxy?.$modal.confirm('确认将全部产品的服务费配置同步到各租户佣金配置吗？该操作会覆盖租户已有佣金配置。');
+  buttonLoading.value = true;
+  const loadingInstance = ElLoading.service({
+    lock: true,
+    text: '正在同步全部产品佣金配置，请稍候...',
+    background: 'rgba(0, 0, 0, 0.7)'
+  });
+  try {
+    const res = await syncAllServiceFeeCommission();
+    const data = (res.data || {}) as ServiceFeeCommissionSyncResult;
+    proxy?.$modal.msgSuccess(
+      `同步完成：成功 ${data.successCount ?? 0} 条，跳过 ${data.skippedCount ?? 0} 条，失败 ${data.failCount ?? 0} 条，影响 ${data.tenantCount ?? 0} 个租户。`
+    );
+  } finally {
+    loadingInstance.close();
+    buttonLoading.value = false;
+  }
+};
 
 // ---------------- 动态表格操作方法 ----------------
 const addLiability = () => { form.value.liabilityList.push({ sort: form.value.liabilityList.length + 1, liabilityName: '', insuredAmountDesc: '', description: '' }); }
