@@ -21,7 +21,7 @@
             </el-form-item>
             <el-form-item label="订单状态" prop="status">
               <el-select v-model="queryParams.status" placeholder="请选择订单状态" clearable>
-                <el-option v-for="dict in insurance_card_order_status" :key="dict.value" :label="dict.label" :value="parseInt(dict.value)" />
+                <el-option v-for="dict in adminOrderStatusOptions" :key="dict.value" :label="dict.label" :value="parseInt(dict.value)" />
               </el-select>
             </el-form-item>
             <el-form-item label="卡密保司" prop="selectedCompanyCode">
@@ -53,6 +53,7 @@
 
       <el-table v-loading="loading" border :data="InsuranceCardOrderList">
         <el-table-column label="租户编号" align="center" prop="tenantId" width="100" />
+        <el-table-column label="租户名称" align="center" prop="tenantName" width="160" show-overflow-tooltip />
         <el-table-column label="订单号" align="center" prop="orderNo" width="230">
           <template #default="scope">
             <el-link type="primary" @click="openDetail(scope.row)">{{ scope.row.orderNo }}</el-link>
@@ -99,6 +100,7 @@
       <div v-loading="detailDrawer.loading" class="p-4">
         <el-descriptions :column="2" border>
           <el-descriptions-item label="租户编号">{{ detailDrawer.data.tenantId || '--' }}</el-descriptions-item>
+          <el-descriptions-item label="租户名称">{{ detailDrawer.data.tenantName || '--' }}</el-descriptions-item>
           <el-descriptions-item label="订单号">{{ detailDrawer.data.orderNo || '--' }}</el-descriptions-item>
           <el-descriptions-item label="订单状态">
             <el-tag :type="getOrderStatusTagType(detailDrawer.data.status)">{{ getOrderStatusLabel(detailDrawer.data.status) }}</el-tag>
@@ -202,6 +204,10 @@ const statusFallback: Record<string, { label: string; type: 'primary' | 'success
   '4': { label: '已取消', type: 'info' },
   '5': { label: '已发货', type: 'success' }
 };
+
+const adminOrderStatusOptions = computed(() => {
+  return insurance_card_order_status.value?.filter((item: DictDataOption) => ['0', '5'].includes(String(item.value))) || [];
+});
 
 const getList = async () => {
   loading.value = true;

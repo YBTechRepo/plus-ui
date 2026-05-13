@@ -10,6 +10,11 @@ export interface InsuranceCardOrderVO {
   tenantId?: string;
 
   /**
+   * 租户名称
+   */
+  tenantName?: string;
+
+  /**
    * 订单号
    */
   orderNo: string;
@@ -153,7 +158,7 @@ export interface InsuranceCardOrderVO {
 export interface InsuranceCardOrderForm extends BaseEntity {
   id?: string | number;
   tenantId?: string;
-  tenantId?: string;
+  tenantName?: string;
   orderNo?: string;
   productId?: string | number;
   productCode?: string;

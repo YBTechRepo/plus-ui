@@ -1,5 +1,15 @@
 export interface UserAccountVO {
   /**
+   * 租户号
+   */
+  tenantId?: string | number;
+
+  /**
+   * 租户名称
+   */
+  tenantName?: string;
+
+  /**
    * 用户ID
    */
   userId: string | number;

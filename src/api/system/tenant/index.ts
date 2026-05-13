@@ -100,6 +100,14 @@ export function syncTenantDict() {
   });
 }
 
+// 刷新所有租户字典缓存
+export function refreshAllTenantDictCache() {
+  return request({
+    url: '/system/tenant/refreshAllTenantDictCache',
+    method: 'delete'
+  });
+}
+
 // 同步租户字典
 export function syncTenantConfig() {
   return request({

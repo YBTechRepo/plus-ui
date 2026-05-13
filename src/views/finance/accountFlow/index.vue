@@ -46,6 +46,8 @@
       <el-table v-loading="loading" border :data="accountFlowList" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center" />
         <!-- <el-table-column label="id" align="center" prop="id" v-if="true" /> -->
+        <el-table-column label="租户号" align="center" prop="tenantId" width="110" />
+        <el-table-column label="租户名称" align="center" prop="tenantName" width="160" show-overflow-tooltip />
         <el-table-column label="用户ID" align="center" prop="userId" />
         <el-table-column label="用户账号" align="center" prop="userName" />
         <el-table-column label="用户姓名" align="center" prop="userNickName" />

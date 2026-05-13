@@ -48,6 +48,11 @@
             <el-button v-if="userId === 1" type="success" plain icon="Refresh" @click="handleSyncTenantDict">同步租户字典</el-button>
           </el-col>
           <el-col :span="1.5">
+            <el-button v-if="userId === 1" type="warning" plain icon="Refresh" @click="handleRefreshAllTenantDictCache">
+              刷新租户字典缓存
+            </el-button>
+          </el-col>
+          <el-col :span="1.5">
             <el-button v-if="userId === 1" type="success" plain icon="Refresh" @click="handleSyncTenantConfig">同步租户参数配置</el-button>
           </el-col>
           <right-toolbar v-model:show-search="showSearch" @query-table="getList"></right-toolbar>
@@ -177,6 +182,7 @@ import {
   changeTenantStatus,
   syncTenantPackage,
   syncTenantDict,
+  refreshAllTenantDictCache,
   syncTenantConfig
 } from '@/api/system/tenant';
 import { selectTenantPackage } from '@/api/system/tenantPackage';
@@ -423,6 +429,13 @@ const handleExport = () => {
 const handleSyncTenantDict = async () => {
   await proxy?.$modal.confirm('确认要同步所有租户字典吗？');
   const res = await syncTenantDict();
+  proxy?.$modal.msgSuccess(res.msg);
+};
+
+/**刷新所有租户字典缓存*/
+const handleRefreshAllTenantDictCache = async () => {
+  await proxy?.$modal.confirm('确认要刷新所有租户字典缓存吗？');
+  const res = await refreshAllTenantDictCache();
   proxy?.$modal.msgSuccess(res.msg);
 };
 

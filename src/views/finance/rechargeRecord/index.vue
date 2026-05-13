@@ -47,6 +47,8 @@
         <el-table-column type="selection" width="55" align="center" />
         <!-- <el-table-column label="id" align="center" prop="id" v-if="true" /> -->
         <el-table-column label="充值单号" align="center" prop="rechargeNo" />
+        <el-table-column label="租户号" align="center" prop="tenantId" width="110" />
+        <el-table-column label="租户名称" align="center" prop="tenantName" width="160" show-overflow-tooltip />
         <!-- <el-table-column label="申请人ID" align="center" prop="userId" /> -->
         <el-table-column label="申请人账号" align="center" prop="userName" />
         <el-table-column label="申请人姓名" align="center" prop="userNickName" />

@@ -1,5 +1,15 @@
 export interface AccountFlowVO {
   /**
+   * 租户号
+   */
+  tenantId?: string | number;
+
+  /**
+   * 租户名称
+   */
+  tenantName?: string;
+
+  /**
    * id
    */
   id: string | number;

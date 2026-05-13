@@ -5,6 +5,16 @@ export interface InsuranceProxyOrderVO {
   id: string | number;
 
   /**
+   * 租户编号
+   */
+  tenantId?: string;
+
+  /**
+   * 租户名称
+   */
+  tenantName?: string;
+
+  /**
    * 订单号
    */
   orderNo: string;

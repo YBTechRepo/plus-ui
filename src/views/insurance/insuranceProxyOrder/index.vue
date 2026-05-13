@@ -57,7 +57,8 @@
       </template>
 
       <el-table v-loading="loading" border :data="insuranceProxyOrderList">
-        <el-table-column type="index" label="序号" width="60" align="center" />
+        <el-table-column label="租户编号" align="center" prop="tenantId" width="110" />
+        <el-table-column label="租户名称" align="center" prop="tenantName" width="160" show-overflow-tooltip />
         <el-table-column label="订单号" align="center" prop="orderNo" width="300">
           <template #default="scope">
             <el-link type="primary" @click="openDetailDrawer(scope.row)">{{ scope.row.orderNo }}</el-link>
