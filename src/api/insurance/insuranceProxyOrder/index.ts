@@ -1,6 +1,11 @@
 import request from '@/utils/request';
 import { AxiosPromise } from 'axios';
-import { InsuranceProxyOrderVO, InsuranceProxyOrderForm, InsuranceProxyOrderQuery } from '@/api/insurance/insuranceProxyOrder/types';
+import {
+  InsuranceProxyOrderVO,
+  InsuranceProxyOrderForm,
+  InsuranceProxyOrderQuery,
+  InsuranceProxyOrderStatusForm
+} from '@/api/insurance/insuranceProxyOrder/types';
 
 /**
  * 查询代投保订单查询列表
@@ -48,6 +53,18 @@ export const updateInsuranceProxyOrder = (data: InsuranceProxyOrderForm) => {
     url: '/insurance/insuranceProxyOrder',
     method: 'put',
     data: data
+  });
+};
+
+/**
+ * 管理员变更代投保订单状态
+ * @param data
+ */
+export const changeInsuranceProxyOrderStatus = (data: InsuranceProxyOrderStatusForm) => {
+  return request({
+    url: '/insurance/insuranceProxyOrder/changeStatus',
+    method: 'post',
+    data
   });
 };
 

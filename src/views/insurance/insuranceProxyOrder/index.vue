@@ -83,11 +83,19 @@
             <span>{{ parseTime(scope.row.createTime, '{y}-{m}-{d}') }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" align="center" fixed="right" min-width="100">
+        <el-table-column label="操作" align="center" fixed="right" min-width="160" class-name="small-padding fixed-width">
           <template #default="scope">
-            <el-tooltip content="查看详情" placement="top">
+            <div class="table-action">
               <el-button link type="primary" icon="View" @click="openDetailDrawer(scope.row)">查看详情</el-button>
-            </el-tooltip>
+              <el-dropdown v-if="canCancelOrder(scope.row)" trigger="click" @command="(command) => handleMoreCommand(command, scope.row)">
+                <el-button link type="primary" icon="ArrowDown">更多</el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="cancel" icon="CircleClose">取消订单</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -177,11 +185,13 @@
 </template>
 
 <script setup name="InsuranceProxyOrder" lang="ts">
-import { listInsuranceProxyOrder } from '@/api/insurance/insuranceProxyOrder';
+import { changeInsuranceProxyOrderStatus, listInsuranceProxyOrder } from '@/api/insurance/insuranceProxyOrder';
 import { InsuranceProxyOrderVO, InsuranceProxyOrderQuery } from '@/api/insurance/insuranceProxyOrder/types';
+import { useUserStore } from '@/store/modules/user';
 import request from '@/utils/request';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
+const userStore = useUserStore();
 const { insurance_apply_status, insurance_commission_status, insurance_id_type, insurance_relationship_to_insured } = toRefs<any>(
   proxy?.useDict('insurance_apply_status', 'insurance_commission_status', 'insurance_id_type', 'insurance_relationship_to_insured')
 );
@@ -239,6 +249,30 @@ const resetQuery = () => {
 /** 导出按钮操作 */
 const handleExport = () => {
   proxy?.download('insurance/insuranceProxyOrder/export', { ...queryParams.value }, `代投保订单_${new Date().getTime()}.xlsx`);
+};
+
+const isSystemAdmin = computed(() => userStore.roles.includes('superadmin'));
+
+const canCancelOrder = (row: InsuranceProxyOrderVO) => {
+  return isSystemAdmin.value && Number(row.status) !== 4;
+};
+
+const handleCancelOrder = async (row: InsuranceProxyOrderVO) => {
+  const batchTip = Number(row.isBatch) === 1 ? '，该批次主单及全部子单都会同步取消' : '';
+  await proxy?.$modal.confirm(`确认要取消订单"${row.orderNo}"吗${batchTip}？`);
+  await changeInsuranceProxyOrderStatus({
+    id: row.id,
+    orderNo: row.orderNo,
+    status: 4
+  });
+  proxy?.$modal.msgSuccess('订单已取消');
+  await getList();
+};
+
+const handleMoreCommand = (command: string | number | object, row: InsuranceProxyOrderVO) => {
+  if (command === 'cancel') {
+    handleCancelOrder(row);
+  }
 };
 
 // ===================== 详情下钻逻辑 =====================
@@ -318,3 +352,19 @@ onMounted(() => {
   getList();
 });
 </script>
+
+<style scoped>
+.table-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.table-action :deep(.el-button) {
+  margin-left: 0;
+  height: 22px;
+  padding: 0;
+}
+</style>

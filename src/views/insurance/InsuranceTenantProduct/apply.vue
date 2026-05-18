@@ -113,13 +113,13 @@
           <template #header>
             <div class="section-header">
               <span class="section-title">被保人信息</span>
-              <el-button type="primary" plain icon="Plus" @click="addInsured">新增被保人</el-button>
+              <el-button v-if="!isCardProduct" type="primary" plain icon="Plus" @click="addInsured">新增被保人</el-button>
             </div>
           </template>
 
           <div v-for="(insured, index) in form.insuredList" :key="index" class="insured-block">
             <div class="insured-title">
-              <span>被保人 {{ index + 1 }}</span>
+              <span>{{ isCardProduct ? '被保人' : `被保人 ${index + 1}` }}</span>
               <el-button v-if="form.insuredList.length > 1" link type="danger" icon="Delete" @click="removeInsured(index)">删除</el-button>
             </div>
             <el-row :gutter="16">
@@ -212,6 +212,7 @@ const cardApplyFormRef = ref<ElFormInstance>();
 const submitting = ref(false);
 const orderInfo = ref<any>({});
 const isCardOrderRoute = computed(() => route.query.orderType === 'card');
+const isCardProduct = computed(() => Number(orderInfo.value?.productMode) === 1);
 const isCardSecretOrder = computed(
   () => isCardOrderRoute.value || (Number(orderInfo.value?.productMode) === 3 && Number(orderInfo.value?.insureMode) === 2)
 );
@@ -327,9 +328,14 @@ const fetchOrder = async () => {
     form.insuredList[0].insuredName = orderInfo.value.customerName || '';
     form.insuredList[0].insuredPhone = orderInfo.value.customerMobile || '';
   }
+  limitCardProductInsured();
 };
 
 const addInsured = () => {
+  if (isCardProduct.value) {
+    proxy?.$modal.msgWarning('卡单产品只能填写一名被保人');
+    return;
+  }
   form.insuredList.push(initInsured());
 };
 
@@ -337,11 +343,18 @@ const removeInsured = (index: number) => {
   form.insuredList.splice(index, 1);
 };
 
+const limitCardProductInsured = () => {
+  if (isCardProduct.value && form.insuredList.length > 1) {
+    form.insuredList.splice(1);
+  }
+};
+
 const submitForm = () => {
   if (isCardSecretOrder.value) {
     submitCardForm();
     return;
   }
+  limitCardProductInsured();
   applyFormRef.value?.validate(async (valid: boolean) => {
     if (!valid) return;
     submitting.value = true;

@@ -118,7 +118,6 @@ export interface InsuranceProxyOrderVO {
    * 所属批次单号
    */
   batchOrderNo: string;
-
 }
 
 export interface InsuranceProxyOrderForm extends BaseEntity {
@@ -226,11 +225,9 @@ export interface InsuranceProxyOrderForm extends BaseEntity {
    * 所属批次单号
    */
   batchOrderNo?: string;
-
 }
 
 export interface InsuranceProxyOrderQuery extends PageQuery {
-
   /**
    * 订单号
    */
@@ -280,4 +277,21 @@ export interface InsuranceProxyOrderQuery extends PageQuery {
    * 日期范围参数
    */
   params?: any;
+}
+
+export interface InsuranceProxyOrderStatusForm {
+  /**
+   * id
+   */
+  id: string | number;
+
+  /**
+   * 订单号
+   */
+  orderNo: string;
+
+  /**
+   * 订单状态
+   */
+  status: number;
 }
