@@ -118,3 +118,25 @@ export function syncAllServiceFeeCommission() {
     method: 'post'
   });
 }
+
+/**
+ * 将平台产品同步到各租户产品库
+ * @param productIds 产品ID数组
+ */
+export function syncTenantProducts(productIds: Array<string | number>) {
+  return request({
+    url: '/insurance/InsuranceProductConfig/syncTenantProducts',
+    method: 'post',
+    data: { productIds }
+  });
+}
+
+/**
+ * 将全部平台产品同步到各租户产品库
+ */
+export function syncAllTenantProducts() {
+  return request({
+    url: '/insurance/InsuranceProductConfig/syncAllTenantProducts',
+    method: 'post'
+  });
+}

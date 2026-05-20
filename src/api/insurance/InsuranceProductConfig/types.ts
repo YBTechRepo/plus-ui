@@ -328,3 +328,5 @@ export interface ServiceFeeCommissionSyncResult {
   skippedCount: number;
   failCount: number;
 }
+
+export type TenantProductSyncResult = ServiceFeeCommissionSyncResult;

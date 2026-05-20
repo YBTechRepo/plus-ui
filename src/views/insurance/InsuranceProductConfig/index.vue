@@ -70,6 +70,29 @@
               >同步全部佣金</el-button
             >
           </el-col>
+          <el-col :span="1.5">
+            <el-button
+              type="success"
+              plain
+              icon="Refresh"
+              :disabled="multiple"
+              :loading="buttonLoading"
+              @click="handleSyncTenantProducts"
+              v-hasPermi="['insurance:InsuranceProductConfig:syncProduct']"
+              >同步产品</el-button
+            >
+          </el-col>
+          <el-col :span="1.5">
+            <el-button
+              type="warning"
+              plain
+              icon="Refresh"
+              :loading="buttonLoading"
+              @click="handleSyncAllTenantProducts"
+              v-hasPermi="['insurance:InsuranceProductConfig:syncProduct']"
+              >同步全部产品</el-button
+            >
+          </el-col>
           <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
         </el-row>
       </template>
@@ -473,12 +496,15 @@ import {
   addProductFull,// 替换原来的 add
   updateProductFull,// 替换原来的 update
   syncServiceFeeCommission,
-  syncAllServiceFeeCommission
+  syncAllServiceFeeCommission,
+  syncTenantProducts,
+  syncAllTenantProducts
 } from '@/api/insurance/InsuranceProductConfig';
 import {
   InsuranceProductConfigVO,
   InsuranceProductConfigQuery,
-  ServiceFeeCommissionSyncResult
+  ServiceFeeCommissionSyncResult,
+  TenantProductSyncResult
 } from '@/api/insurance/InsuranceProductConfig/types';
 import { listInsuranceProductCategory } from '@/api/insurance/insuranceProductCategory';
 import { ElLoading } from 'element-plus';
@@ -862,6 +888,52 @@ const handleSyncAllCommission = async () => {
   try {
     const res = await syncAllServiceFeeCommission();
     const data = (res.data || {}) as ServiceFeeCommissionSyncResult;
+    proxy?.$modal.msgSuccess(
+      `同步完成：成功 ${data.successCount ?? 0} 条，跳过 ${data.skippedCount ?? 0} 条，失败 ${data.failCount ?? 0} 条，影响 ${data.tenantCount ?? 0} 个租户。`
+    );
+  } finally {
+    loadingInstance.close();
+    buttonLoading.value = false;
+  }
+};
+
+/** 同步产品到租户产品库 */
+const handleSyncTenantProducts = async () => {
+  if (ids.value.length === 0) {
+    proxy?.$modal.msgWarning('请先选择需要同步的产品');
+    return;
+  }
+  await proxy?.$modal.confirm(`确认将已选 ${ids.value.length} 个产品同步到所有启用租户的产品库吗？已存在产品会保留租户上下架状态和排序。`);
+  buttonLoading.value = true;
+  const loadingInstance = ElLoading.service({
+    lock: true,
+    text: '正在同步产品到租户产品库，请稍候...',
+    background: 'rgba(0, 0, 0, 0.7)'
+  });
+  try {
+    const res = await syncTenantProducts(ids.value);
+    const data = (res.data || {}) as TenantProductSyncResult;
+    proxy?.$modal.msgSuccess(
+      `同步完成：成功 ${data.successCount ?? 0} 条，跳过 ${data.skippedCount ?? 0} 条，失败 ${data.failCount ?? 0} 条，影响 ${data.tenantCount ?? 0} 个租户。`
+    );
+  } finally {
+    loadingInstance.close();
+    buttonLoading.value = false;
+  }
+};
+
+/** 同步全部产品到租户产品库 */
+const handleSyncAllTenantProducts = async () => {
+  await proxy?.$modal.confirm('确认将全部平台产品同步到所有启用租户的产品库吗？已存在产品会保留租户上下架状态和排序。');
+  buttonLoading.value = true;
+  const loadingInstance = ElLoading.service({
+    lock: true,
+    text: '正在同步全部产品到租户产品库，请稍候...',
+    background: 'rgba(0, 0, 0, 0.7)'
+  });
+  try {
+    const res = await syncAllTenantProducts();
+    const data = (res.data || {}) as TenantProductSyncResult;
     proxy?.$modal.msgSuccess(
       `同步完成：成功 ${data.successCount ?? 0} 条，跳过 ${data.skippedCount ?? 0} 条，失败 ${data.failCount ?? 0} 条，影响 ${data.tenantCount ?? 0} 个租户。`
     );

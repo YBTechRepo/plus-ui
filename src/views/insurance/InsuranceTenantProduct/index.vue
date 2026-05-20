@@ -237,9 +237,6 @@
         <el-form-item>
           <el-button type="primary" icon="Search" @click="handleProductSelectQuery">搜索</el-button>
           <el-button icon="Refresh" @click="resetProductSelectQuery">重置</el-button>
-          <el-button type="success" plain icon="Plus" @click="handleCreateProduct" v-hasPermi="['insurance:InsuranceProductConfig:add']"
-            >新增产品</el-button
-          >
         </el-form-item>
       </el-form>
 
@@ -608,14 +605,6 @@ const handleProductSelectQuery = () => {
 const resetProductSelectQuery = () => {
   productSelectQueryParams.productName = undefined;
   handleProductSelectQuery();
-};
-
-const handleCreateProduct = () => {
-  productSelectDialog.visible = false;
-  proxy?.$router.push({
-    path: '/insurance/InsuranceProductConfig',
-    query: { action: 'add' }
-  });
 };
 
 const handleProductSelectionChange = (selection: InsuranceProductConfigVO[]) => {
