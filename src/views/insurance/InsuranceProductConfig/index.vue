@@ -189,14 +189,14 @@
               </el-col>
               <el-col :span="12">
                 <el-form-item label="投保模式" prop="product.insureMode">
-                  <el-select v-model="form.product.insureMode" placeholder="请选择投保模式" class="w-full" :disabled="isCardSecretProductMode">
-                    <el-option v-for="dict in insurance_product_insure_mode" :key="dict.value" :label="dict.label" :value="parseInt(dict.value)" />
+                  <el-select v-model="form.product.insureMode" placeholder="请选择投保模式" class="w-full" :disabled="isInsureModeFixed">
+                    <el-option v-for="dict in availableInsureModeOptions" :key="dict.value" :label="dict.label" :value="parseInt(dict.value)" />
                   </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="支付模式" prop="product.paymentMode">
-                  <el-select v-model="form.product.paymentMode" placeholder="请选择支付模式" class="w-full" :disabled="isCardSecretProductMode">
+                  <el-select v-model="form.product.paymentMode" placeholder="请选择支付模式" class="w-full" :disabled="isPaymentModeFixed">
                     <el-option v-for="dict in insurance_product_payment_mode" :key="dict.value" :label="dict.label" :value="parseInt(dict.value)" />
                   </el-select>
                 </el-form-item>
@@ -522,8 +522,13 @@ const marketingImagesStr = ref('');
 const marketingTagsArr = ref<string[]>([]);
 const currentCategoryTags = ref<string[]>([]);
 const categoryOptions = ref<any[]>([]);
+const CARD_PRODUCT_MODE = 1;
+const REGULAR_PRODUCT_MODE = 2;
 const CARD_SECRET_PRODUCT_MODE = 3;
+const SELF_INSURE_MODE = 0;
+const PLATFORM_INSURE_MODE = 1;
 const CARD_SECRET_INSURE_MODE = 2;
+const REGULAR_PAYMENT_MODE = 0;
 const BALANCE_PAYMENT_MODE = 1;
 
 // 🌟 重构超级大对象的初始值
@@ -585,14 +590,9 @@ const data = reactive<any>({
 
 const { queryParams, form, rules } = toRefs(data);
 
-// 判断产品模式是否为“常规产品”
-const isRegularProduct = computed(() => {
-  if (form.value.product.productMode == null) return false;
-  // 字典数据加载需要时间，并且可能 undefined
-  const modes = insurance_product_mode.value || [];
-  const match = modes.find((d: any) => parseInt(d.value) === form.value.product.productMode);
-  return match && match.label === '常规产品';
-});
+const isCardProductMode = computed(() => Number(form.value.product.productMode) === CARD_PRODUCT_MODE);
+
+const isRegularProduct = computed(() => Number(form.value.product.productMode) === REGULAR_PRODUCT_MODE);
 
 const isCardSecretProduct = computed(() => {
   return Number(form.value.product.productMode) === CARD_SECRET_PRODUCT_MODE && Number(form.value.product.insureMode) === CARD_SECRET_INSURE_MODE;
@@ -602,15 +602,48 @@ const isCardSecretProductMode = computed(() => {
   return Number(form.value.product.productMode) === CARD_SECRET_PRODUCT_MODE;
 });
 
-const syncCardSecretModes = () => {
-  if (!isCardSecretProductMode.value) return;
-  form.value.product.insureMode = CARD_SECRET_INSURE_MODE;
-  form.value.product.paymentMode = BALANCE_PAYMENT_MODE;
+const isInsureModeFixed = computed(() => isRegularProduct.value || isCardSecretProductMode.value);
+
+const isPaymentModeFixed = computed(() => isCardProductMode.value || isRegularProduct.value || isCardSecretProductMode.value);
+
+const availableInsureModeOptions = computed(() => {
+  const options = insurance_product_insure_mode.value || [];
+  if (isCardProductMode.value || isRegularProduct.value) {
+    return options.filter((dict: any) => Number(dict.value) !== CARD_SECRET_INSURE_MODE);
+  }
+  return options;
+});
+
+const syncProductModes = () => {
+  if (isRegularProduct.value) {
+    form.value.product.insureMode = SELF_INSURE_MODE;
+    form.value.product.paymentMode = REGULAR_PAYMENT_MODE;
+    return;
+  }
+
+  if (isCardProductMode.value) {
+    if (Number(form.value.product.insureMode) === CARD_SECRET_INSURE_MODE) {
+      form.value.product.insureMode = SELF_INSURE_MODE;
+    }
+    if (Number(form.value.product.insureMode) === PLATFORM_INSURE_MODE) {
+      form.value.product.paymentMode = BALANCE_PAYMENT_MODE;
+      return;
+    }
+    if (Number(form.value.product.insureMode) === SELF_INSURE_MODE) {
+      form.value.product.paymentMode = REGULAR_PAYMENT_MODE;
+    }
+    return;
+  }
+
+  if (isCardSecretProductMode.value) {
+    form.value.product.insureMode = CARD_SECRET_INSURE_MODE;
+    form.value.product.paymentMode = BALANCE_PAYMENT_MODE;
+  }
 };
 
-watch(() => form.value.product.productMode, () => {
-  syncCardSecretModes();
-  if (isCardSecretProductMode.value) {
+watch([() => form.value.product.productMode, () => form.value.product.insureMode], () => {
+  syncProductModes();
+  if (isInsureModeFixed.value || isPaymentModeFixed.value) {
     nextTick(() => {
       InsuranceProductConfigFormRef.value?.clearValidate(['product.insureMode', 'product.paymentMode']);
     });
@@ -692,7 +725,7 @@ const handleUpdate = async (row?: InsuranceProductConfigVO) => {
   claimImagesStr.value = form.value.claimImages ? form.value.claimImages.join(',') : '';
   marketingImagesStr.value = form.value.marketingImages ? form.value.marketingImages.join(',') : '';
   marketingTagsArr.value = form.value.product.marketingTags ? form.value.product.marketingTags.split(',') : [];
-  syncCardSecretModes();
+  syncProductModes();
 
   // 回显时，根据 categoryId 动态加载该分类的可选标签（包含继承自父分类的标签）
   if (form.value.product.categoryId) {
@@ -725,7 +758,7 @@ const handleUpdate = async (row?: InsuranceProductConfigVO) => {
 
 /** 🌟 提交按钮操作 (组装超级大对象) */
 const submitForm = () => {
-  syncCardSecretModes();
+  syncProductModes();
   InsuranceProductConfigFormRef.value?.validate(async (valid: boolean) => {
     if (valid) {
       buttonLoading.value = true;

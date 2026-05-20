@@ -81,22 +81,36 @@
             <span>{{ parseTime(scope.row.createTime, '{y}-{m}-{d}') }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" align="center" fixed="right" min-width="260" class-name="small-padding fixed-width">
+        <el-table-column label="操作" align="center" fixed="right" min-width="300" class-name="small-padding fixed-width">
           <template #default="scope">
             <el-button link type="primary" icon="View" @click="openDetailDrawer(scope.row)">详情</el-button>
-            <el-button v-if="canGoPayment(scope.row)" link type="warning" icon="Wallet" @click="handleGoPayment(scope.row)">去支付</el-button>
-            <el-button v-if="canCancelOrder(scope.row)" link type="danger" icon="CircleClose" @click="handleCancelOrder(scope.row)"
-              >取消订单</el-button
+            <el-button v-if="canPreviewVoucher(scope.row)" link type="primary" icon="Document" @click="handlePreviewVoucher(scope.row)"
+              >投保凭证</el-button
             >
+            <el-button v-if="canGoPayment(scope.row)" link type="warning" icon="Wallet" @click="handleGoPayment(scope.row)">去支付</el-button>
             <el-button
+              v-if="hasApprovePermission"
               link
               type="primary"
               icon="Check"
               :disabled="isApproveDisabled(scope.row)"
               @click="handleApprove(scope.row)"
-              v-hasPermi="['insurance:InsuranceApplyRecord:edit']"
               >审批</el-button
             >
+            <el-dropdown
+              v-if="hasMoreActions(scope.row)"
+              class="operation-more-dropdown"
+              trigger="click"
+              @command="(command: string) => handleMoreCommand(command, scope.row)"
+            >
+              <el-button link type="primary" icon="MoreFilled">更多</el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-if="canCancelOrder(scope.row)" command="cancel" icon="CircleClose">取消订单</el-dropdown-item>
+                  <el-dropdown-item v-if="canDeleteOrder(scope.row)" command="delete" icon="Delete">删除订单</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </el-table-column>
       </el-table>
@@ -195,16 +209,225 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 投保凭证预览 -->
+    <el-dialog v-model="voucherDialog.visible" title="投保凭证预览" width="920px" append-to-body destroy-on-close class="voucher-dialog">
+      <div v-loading="voucherDialog.loading" class="voucher-wrapper">
+        <div v-if="showBatchVoucherList" class="voucher-batch-list">
+          <el-table border :data="voucherDialog.batchMembers" style="width: 100%">
+            <el-table-column type="index" label="序号" width="55" align="center" />
+            <el-table-column label="子单号" align="center" prop="orderNo" min-width="260" show-overflow-tooltip />
+            <el-table-column label="投保人" align="center" prop="appName" min-width="140" />
+            <el-table-column label="被保人" align="center" prop="insuredName" min-width="140" />
+            <el-table-column label="子单状态" align="center" prop="status" min-width="120">
+              <template #default="scope">
+                <el-tag :type="getApplyStatusTagType(scope.row.status)">{{ getApplyStatusLabel(scope.row.status) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" align="center" fixed="right" width="200">
+              <template #default="scope">
+                <el-button link type="primary" icon="View" @click="handlePreviewSubVoucher(scope.row)">预览</el-button>
+                <el-button
+                  link
+                  type="primary"
+                  icon="Document"
+                  :loading="voucherDialog.pdfLoading && voucherDialog.generatingOrderNo === scope.row.orderNo"
+                  @click="handleGeneratePdf(scope.row)"
+                  >生成凭证</el-button
+                >
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <div v-else class="voucher-pdf">
+          <div class="voucher-title">{{ `${displayValue(voucherDialog.orderInfo.productName)}-投保凭证` }}</div>
+          <div class="voucher-notice">
+            本凭证用于证明用户已完成投保信息提交及订单生成。具体承保结果、保障责任、免责条款及理赔要求，最终以保险公司出具的正式保单、保险条款及保险公司审核结果为准。
+          </div>
+
+          <div class="voucher-section">
+            <div class="section-title">订单信息</div>
+            <table class="voucher-table">
+              <tbody>
+                <tr>
+                  <td class="label">订单号</td>
+                  <td class="value">{{ displayValue(voucherDialog.orderInfo.orderNo) }}</td>
+                  <td class="label">下单时间</td>
+                  <td class="value">{{ displayTime(voucherDialog.orderInfo.createTime) }}</td>
+                </tr>
+                <tr>
+                  <td class="label">登记客户</td>
+                  <td class="value">{{ displayValue(voucherDialog.orderInfo.customerName) }}</td>
+                  <td class="label">客户手机号</td>
+                  <td class="value">{{ displayValue(voucherDialog.orderInfo.customerMobile) }}</td>
+                </tr>
+                <tr>
+                  <td class="label">业务员姓名</td>
+                  <td class="value" colspan="3">{{ displayValue(voucherDialog.orderInfo.agentName) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="voucher-section">
+            <div class="section-title">投保须知</div>
+            <table v-if="voucherInsureNotice.length > 0" class="voucher-table">
+              <tbody>
+                <tr v-for="item in voucherInsureNotice" :key="`${item.title}-${item.content}`">
+                  <td class="label">{{ displayValue(item.title) }}</td>
+                  <td class="value" colspan="3">{{ displayValue(item.content) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else class="voucher-empty">暂无投保须知</div>
+          </div>
+
+          <div v-if="showVoucherPersonInfo" class="voucher-section">
+            <div class="section-title">投保人信息</div>
+            <table class="voucher-table">
+              <tbody>
+                <tr>
+                  <td class="label">投保人姓名</td>
+                  <td class="value">{{ displayValue(voucherDialog.personDetail.appName) }}</td>
+                  <td class="label">证件号码</td>
+                  <td class="value">{{ displayValue(voucherDialog.personDetail.appCertNo) }}</td>
+                </tr>
+                <tr>
+                  <td class="label">联系电话</td>
+                  <td class="value">{{ displayValue(voucherDialog.personDetail.appPhone) }}</td>
+                  <td class="label">投保时间</td>
+                  <td class="value">{{ displayTime(voucherDialog.orderInfo.createTime) }}</td>
+                </tr>
+                <tr>
+                  <td class="label">证件类型</td>
+                  <td class="value">{{ getDictLabel(insurance_id_type, voucherDialog.personDetail.appCertType) }}</td>
+                  <td class="label">联系地址</td>
+                  <td class="value">{{ displayValue(voucherDialog.personDetail.appAddress) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-if="showVoucherPersonInfo" class="voucher-section">
+            <div class="section-title">被保人信息</div>
+            <table class="voucher-table">
+              <tbody>
+                <tr>
+                  <td class="label">被保人姓名</td>
+                  <td class="value">{{ displayValue(voucherDialog.personDetail.insuredName) }}</td>
+                  <td class="label">证件号码</td>
+                  <td class="value">{{ displayValue(voucherDialog.personDetail.insuredCertNo) }}</td>
+                </tr>
+                <tr>
+                  <td class="label">与投保人关系</td>
+                  <td class="value">{{ getDictLabel(insurance_relationship_to_insured, voucherDialog.personDetail.relation) }}</td>
+                  <td class="label">证件类型</td>
+                  <td class="value">{{ getDictLabel(insurance_id_type, voucherDialog.personDetail.insuredCertType) }}</td>
+                </tr>
+                <tr>
+                  <td class="label">联系电话</td>
+                  <td class="value">{{ displayValue(voucherDialog.personDetail.insuredPhone) }}</td>
+                  <td class="label">联系地址</td>
+                  <td class="value">{{ displayValue(voucherDialog.personDetail.insuredAddress) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="voucher-section">
+            <div class="section-title">保障信息</div>
+            <table v-if="voucherLiabilityList.length > 0" class="voucher-table">
+              <tbody>
+                <tr v-for="item in voucherLiabilityList" :key="`${item.liabilityName}-${item.insuredAmountDesc}`">
+                  <td class="label">责任名称</td>
+                  <td class="value">{{ displayValue(item.liabilityName) }}</td>
+                  <td class="label">保额</td>
+                  <td class="value">{{ displayValue(item.insuredAmountDesc) }}</td>
+                </tr>
+                <tr v-for="item in voucherLiabilityList" :key="`${item.liabilityName}-desc`">
+                  <td class="label">{{ `${displayValue(item.liabilityName)}-责任说明` }}</td>
+                  <td class="value" colspan="3">{{ displayValue(item.description) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else class="voucher-empty">暂无保障责任</div>
+          </div>
+
+          <div class="voucher-section">
+            <div class="section-title">保险条款</div>
+            <div v-if="voucherClauseFiles.length > 0" class="voucher-link-list">
+              <el-link
+                v-for="item in voucherClauseFiles"
+                :key="`${item.clauseName}-${item.fileUrl}`"
+                type="primary"
+                :underline="false"
+                @click="openFile(item.fileUrl)"
+              >
+                《{{ displayValue(item.clauseName) }}》
+              </el-link>
+            </div>
+            <div v-else class="voucher-empty">暂无条款规则</div>
+          </div>
+
+          <div class="voucher-section">
+            <div class="section-title">理赔说明</div>
+            <table v-if="voucherClaimInstructions.length > 0" class="voucher-table">
+              <tbody>
+                <tr v-for="item in voucherClaimInstructions" :key="`${item.sort}-${item.title}`">
+                  <td class="label">{{ displayValue(item.title) }}</td>
+                  <td class="value" colspan="3">{{ displayValue(item.content) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else class="voucher-empty">暂无理赔说明</div>
+          </div>
+
+          <div class="voucher-section">
+            <div class="section-title">重要说明</div>
+            <div class="important-note">
+              <p>1. 本凭证不等同于正式保险合同，正式保障内容以保险公司出具的电子保单及保险条款为准。</p>
+              <p>2. 若订单处于待承保、待审核或待生效状态，保险责任是否成立以保险公司最终审核结果为准。</p>
+              <p>3. 如发生退保、撤单、承保失败、信息变更等情况，请以系统最新订单状态及保险公司通知为准。</p>
+              <p>4. 理赔申请需按保险公司要求提交真实、完整、有效的理赔材料。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button
+          v-if="!showBatchVoucherList"
+          type="primary"
+          icon="Document"
+          :loading="voucherDialog.pdfLoading"
+          :disabled="voucherDialog.loading"
+          @click="handleGeneratePdf()"
+          >生成PDF</el-button
+        >
+        <el-button @click="voucherDialog.visible = false">关 闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup name="InsuranceApplyRecord" lang="ts">
-import { listInsuranceApplyRecord, getInsuranceApplyRecord, confirmPay, cancelInsuranceApplyRecord } from '@/api/insurance/InsuranceApplyRecord';
+import {
+  listInsuranceApplyRecord,
+  getInsuranceApplyRecord,
+  confirmPay,
+  cancelInsuranceApplyRecord,
+  delInsuranceApplyRecord
+} from '@/api/insurance/InsuranceApplyRecord';
 import { InsuranceApplyRecordVO, InsuranceApplyRecordQuery, InsuranceApplyRecordForm } from '@/api/insurance/InsuranceApplyRecord/types';
+import { getProductFull } from '@/api/insurance/InsuranceProductConfig';
+import { useUserStore } from '@/store/modules/user';
 import request from '@/utils/request';
+import { blobValidate, parseTime } from '@/utils/ruoyi';
+import FileSaver from 'file-saver';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const router = useRouter();
+const userStore = useUserStore();
 const { insurance_apply_status, insurance_commission_status, insurance_id_type, insurance_relationship_to_insured } = toRefs<any>(
   proxy?.useDict('insurance_apply_status', 'insurance_commission_status', 'insurance_id_type', 'insurance_relationship_to_insured')
 );
@@ -215,6 +438,9 @@ const showSearch = ref(true);
 const total = ref(0);
 
 const queryFormRef = ref<ElFormInstance>();
+const hasApprovePermission = computed(
+  () => userStore.permissions.includes('*:*:*') || userStore.permissions.includes('insurance:InsuranceApplyRecord:edit')
+);
 
 // 审批用的表单和数据
 const ApproveFormRef = ref<ElFormInstance>();
@@ -224,6 +450,17 @@ const approveForm = ref<any>({});
 const approveRules = {
   status: [{ required: true, message: '请选择订单状态', trigger: 'change' }]
 };
+const voucherDialog = reactive({
+  visible: false,
+  loading: false,
+  pdfLoading: false,
+  generatingOrderNo: '',
+  orderInfo: {} as any,
+  personDetail: {} as any,
+  batchMembers: [] as any[],
+  batchParentInfo: {} as any,
+  productData: {} as any
+});
 
 const data = reactive<PageData<InsuranceApplyRecordForm, InsuranceApplyRecordQuery>>({
   form: {},
@@ -285,6 +522,18 @@ const isApproveDisabled = (row: InsuranceApplyRecordVO) => {
   return status === 0 || status === 4;
 };
 
+const canPreviewVoucher = (row: InsuranceApplyRecordVO) => {
+  return Number(row.status) === 0;
+};
+
+const canDeleteOrder = (row: InsuranceApplyRecordVO) => {
+  return Number(row.status) !== 0 && Number(row.commissionStatus) !== 0;
+};
+
+const hasMoreActions = (row: InsuranceApplyRecordVO) => {
+  return canCancelOrder(row) || canDeleteOrder(row);
+};
+
 const applyStatusFallback: Record<string, { label: string; type: 'primary' | 'success' | 'info' | 'warning' | 'danger' }> = {
   '0': { label: '已支付', type: 'success' },
   '1': { label: '未支付', type: 'danger' },
@@ -311,8 +560,166 @@ const getApplyStatusTagType = (status: number | string) => {
   return applyStatusFallback[String(status)]?.type || 'info';
 };
 
+const hasValue = (value: unknown) => {
+  return value !== undefined && value !== null && value !== '';
+};
+
+const displayValue = (value: unknown) => {
+  return hasValue(value) ? value : '--';
+};
+
+const displayAmount = (value: unknown) => {
+  return hasValue(value) ? `${value} 元` : '--';
+};
+
+const displayTime = (value: string) => {
+  return value ? parseTime(value, '{y}-{m}-{d} {h}:{i}:{s}') : '--';
+};
+
+const getDictLabel = (options: DictDataOption[] = [], value: unknown) => {
+  if (!hasValue(value)) {
+    return '--';
+  }
+  return options.find((item) => String(item.value) === String(value))?.label || String(value);
+};
+
+const normalizeArray = (raw: any): any[] => {
+  if (!raw) {
+    return [];
+  }
+  if (Array.isArray(raw)) {
+    return raw;
+  }
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const voucherLiabilityList = computed(() => normalizeArray(voucherDialog.productData?.liabilityList));
+const voucherInsureNotice = computed(() => normalizeArray(voucherDialog.productData?.insureNotice));
+const voucherClauseFiles = computed(() => normalizeArray(voucherDialog.productData?.clauseFiles));
+const voucherClaimInstructions = computed(() => normalizeArray(voucherDialog.productData?.claimInstructions));
+const showBatchVoucherList = computed(() => Number(voucherDialog.orderInfo?.isBatch) === 1);
+const showVoucherPersonInfo = computed(() => Number(voucherDialog.orderInfo?.insureMode) === 1 && !showBatchVoucherList.value);
+
 const handleGoPayment = (row: InsuranceApplyRecordVO) => {
   router.push({ path: '/insurance/tenant-product/payment', query: { orderNo: row.orderNo } });
+};
+
+const handlePreviewVoucher = async (row: InsuranceApplyRecordVO) => {
+  voucherDialog.visible = true;
+  voucherDialog.loading = true;
+  voucherDialog.orderInfo = { ...row };
+  voucherDialog.personDetail = {};
+  voucherDialog.batchMembers = [];
+  voucherDialog.batchParentInfo = {};
+  voucherDialog.productData = {};
+  voucherDialog.generatingOrderNo = '';
+  try {
+    if (Number(row.isBatch) === 1) {
+      const batchMembersRes = (await request({
+        url: '/insurance/InsuranceApplyRecord/subOrders',
+        method: 'get',
+        params: { batchOrderNo: row.orderNo }
+      })) as any;
+      voucherDialog.batchMembers = batchMembersRes.rows || batchMembersRes.data || [];
+      voucherDialog.batchParentInfo = { ...row };
+      return;
+    }
+
+    const personDetailPromise =
+      Number(row.insureMode) === 1
+        ? (request({
+            url: '/insurance/InsuranceApplyRecord/personDetail',
+            method: 'get',
+            params: { orderNo: row.orderNo }
+          }) as any)
+        : Promise.resolve({ data: {} });
+    const [personRes, productRes] = await Promise.all([
+      personDetailPromise,
+      row.productId ? getProductFull(row.productId) : Promise.resolve({ data: {} })
+    ]);
+    voucherDialog.personDetail = Number(row.insureMode) === 1 ? personRes.data || {} : {};
+    voucherDialog.productData = productRes.data || productRes || {};
+  } finally {
+    voucherDialog.loading = false;
+  }
+};
+
+const handlePreviewSubVoucher = async (row: any) => {
+  voucherDialog.loading = true;
+  voucherDialog.orderInfo = {
+    ...voucherDialog.batchParentInfo,
+    ...row,
+    isBatch: 2,
+    insureMode: row.insureMode ?? voucherDialog.batchParentInfo.insureMode
+  };
+  voucherDialog.personDetail = {};
+  voucherDialog.productData = {};
+  try {
+    const [personRes, productRes] = await Promise.all([
+      request({
+        url: '/insurance/InsuranceApplyRecord/personDetail',
+        method: 'get',
+        params: { orderNo: row.orderNo }
+      }) as any,
+      row.productId ? getProductFull(row.productId) : Promise.resolve({ data: {} })
+    ]);
+    voucherDialog.personDetail = personRes.data || {};
+    voucherDialog.productData = productRes.data || productRes || {};
+  } finally {
+    voucherDialog.loading = false;
+  }
+};
+
+const openFile = (url: string) => {
+  if (url) {
+    window.open(url, '_blank');
+  }
+};
+
+const buildVoucherPdfFileName = (orderNo?: string) => {
+  const productName = String(voucherDialog.orderInfo.productName || '投保凭证').replace(/[\\/:*?"<>|]/g, '');
+  const orderNoSuffix = orderNo || voucherDialog.orderInfo.orderNo ? `_${orderNo || voucherDialog.orderInfo.orderNo}` : '';
+  return `${productName}-投保凭证${orderNoSuffix}`;
+};
+
+const handleGeneratePdf = async (targetOrder?: any) => {
+  const orderNo = targetOrder?.orderNo || voucherDialog.orderInfo.orderNo;
+  if (!orderNo) {
+    proxy?.$modal.msgError('缺少订单号');
+    return;
+  }
+
+  const fileName = `${buildVoucherPdfFileName(orderNo)}.pdf`;
+  voucherDialog.pdfLoading = true;
+  voucherDialog.generatingOrderNo = orderNo;
+  try {
+    const resp = await request({
+      url: `/insurance/InsuranceApplyRecord/voucherPdf/${orderNo}`,
+      method: 'get',
+      responseType: 'blob',
+      headers: { repeatSubmit: false }
+    });
+
+    if (blobValidate(resp)) {
+      FileSaver.saveAs(new Blob([resp], { type: 'application/pdf' }), fileName);
+      proxy?.$modal.msgSuccess('PDF生成成功');
+    } else {
+      const resText = await new Blob([resp]).text();
+      const rspObj = JSON.parse(resText);
+      proxy?.$modal.msgError(rspObj.msg || 'PDF生成失败');
+    }
+  } catch (error) {
+    console.error(error);
+    proxy?.$modal.msgError('PDF生成失败');
+  } finally {
+    voucherDialog.pdfLoading = false;
+    voucherDialog.generatingOrderNo = '';
+  }
 };
 
 const handleCancelOrder = async (row: InsuranceApplyRecordVO) => {
@@ -326,6 +733,23 @@ const handleCancelOrder = async (row: InsuranceApplyRecordVO) => {
   });
   proxy?.$modal.msgSuccess('订单已取消');
   await getList();
+};
+
+const handleDeleteOrder = async (row: InsuranceApplyRecordVO) => {
+  await proxy?.$modal.confirm(`确认要删除订单"${row.orderNo}"吗？`);
+  await delInsuranceApplyRecord(row.id);
+  proxy?.$modal.msgSuccess('删除成功');
+  await getList();
+};
+
+const handleMoreCommand = (command: string, row: InsuranceApplyRecordVO) => {
+  if (command === 'cancel') {
+    handleCancelOrder(row);
+    return;
+  }
+  if (command === 'delete') {
+    handleDeleteOrder(row);
+  }
 };
 
 /** 审批按钮打开弹窗 */
@@ -439,3 +863,132 @@ onMounted(() => {
   getList();
 });
 </script>
+
+<style scoped lang="scss">
+:deep(.operation-more-dropdown) {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  margin-left: 12px;
+  vertical-align: middle;
+
+  .el-button {
+    height: 22px;
+    padding: 0;
+    line-height: 22px;
+  }
+}
+
+:deep(.voucher-dialog) {
+  .el-dialog__body {
+    max-height: 72vh;
+    padding: 0;
+    overflow: auto;
+    background: #f5f5f5;
+  }
+}
+
+.voucher-wrapper {
+  min-height: 360px;
+  padding: 16px;
+  overflow-x: auto;
+}
+
+.voucher-pdf {
+  box-sizing: border-box;
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 30mm 20mm 25mm;
+  background: #ffffff;
+  color: #333333;
+  font-family: 'Noto Sans CJK SC', SimSun, sans-serif;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.voucher-title {
+  margin-bottom: 24px;
+  font-size: 24px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.voucher-notice {
+  padding: 10px 12px;
+  margin-bottom: 18px;
+  color: #666666;
+  font-size: 12px;
+  line-height: 1.8;
+  border: 1px solid #dddddd;
+}
+
+.voucher-section {
+  margin-bottom: 0;
+}
+
+.section-title {
+  padding-left: 8px;
+  margin: 20px 0 10px;
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 1.25;
+  border-left: 4px solid #333333;
+}
+
+.voucher-empty {
+  padding: 10px 8px;
+  margin-bottom: 12px;
+  color: #666666;
+  border: 1px solid #dddddd;
+}
+
+.voucher-link-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  margin-bottom: 12px;
+}
+
+.important-note {
+  padding: 10px 12px;
+  color: #444444;
+  border: 1px solid #dddddd;
+
+  p {
+    margin: 0 0 8px;
+  }
+
+  p:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.voucher-table {
+  width: 100%;
+  margin-bottom: 12px;
+  border-collapse: collapse;
+  table-layout: fixed;
+
+  td {
+    padding: 8px;
+    line-height: 1.6;
+    vertical-align: top;
+    word-break: break-all;
+    border: 1px solid #999999;
+  }
+
+  .label {
+    width: 20%;
+    color: #333333;
+    font-weight: bold;
+    background: #f5f5f5;
+  }
+
+  .value {
+    width: 30%;
+  }
+}
+</style>
