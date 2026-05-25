@@ -93,6 +93,17 @@
               >同步全部产品</el-button
             >
           </el-col>
+          <el-col :span="1.5">
+            <el-button
+              type="info"
+              plain
+              icon="Refresh"
+              :loading="buttonLoading"
+              @click="handleSyncAllTenantProductStatus"
+              v-hasPermi="['insurance:InsuranceProductConfig:syncProduct']"
+              >同步全部产品状态</el-button
+            >
+          </el-col>
           <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
         </el-row>
       </template>
@@ -269,6 +280,70 @@
                 </el-form-item>
               </el-col>
             </el-row>
+          </el-tab-pane>
+
+          <el-tab-pane label="投保扩展字段" name="insureForm" v-if="!isCardSecretProduct">
+            <el-alert title="用于配置投保页除常规信息之外的产品扩展字段，例如家财险的房屋地址、建筑面积、房屋用途等。" type="info" show-icon class="mb-4" />
+            <el-button type="primary" plain icon="Plus" @click="addInsureFormField" class="mb-2">新增字段</el-button>
+            <el-table :data="insureFormFields" border size="small">
+              <el-table-column label="排序" width="90">
+                <template #default="scope"><el-input-number v-model="scope.row.sort" :controls="false" class="w-full" /></template>
+              </el-table-column>
+              <el-table-column label="分组" width="150">
+                <template #default="scope"><el-input v-model="scope.row.groupName" placeholder="如：房屋信息" /></template>
+              </el-table-column>
+              <el-table-column label="字段编码" width="220">
+                <template #default="scope">
+                  <el-select
+                    v-model="scope.row.key"
+                    filterable
+                    clearable
+                    class="w-full"
+                    placeholder="请选择字段"
+                    @change="(value) => handleInsureFieldChange(scope.row, value)"
+                  >
+                    <el-option
+                      v-for="dict in insurance_insure_field"
+                      :key="dict.value"
+                      :label="`${dict.label}（${dict.value}）`"
+                      :value="dict.value"
+                    />
+                  </el-select>
+                </template>
+              </el-table-column>
+              <el-table-column label="字段名称" width="160">
+                <template #default="scope"><el-input v-model="scope.row.label" placeholder="选择字段后自动带出" readonly /></template>
+              </el-table-column>
+              <el-table-column label="字段类型" width="140">
+                <template #default="scope">
+                  <el-select v-model="scope.row.type" class="w-full">
+                    <el-option v-for="item in dynamicFieldTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+                  </el-select>
+                </template>
+              </el-table-column>
+              <el-table-column label="必填" width="90" align="center">
+                <template #default="scope"><el-switch v-model="scope.row.required" /></template>
+              </el-table-column>
+              <el-table-column label="选项" min-width="220">
+                <template #default="scope">
+                  <el-input
+                    v-model="scope.row.optionsText"
+                    :disabled="!needsOptions(scope.row.type)"
+                    placeholder="每行一个选项，可写：标签=值"
+                    type="textarea"
+                    :rows="2"
+                  />
+                </template>
+              </el-table-column>
+              <el-table-column label="提示语" min-width="180">
+                <template #default="scope"><el-input v-model="scope.row.placeholder" placeholder="选填" /></template>
+              </el-table-column>
+              <el-table-column label="操作" width="80" align="center">
+                <template #default="scope">
+                  <el-button type="danger" icon="Delete" circle @click="removeInsureFormField(scope.$index)" />
+                </template>
+              </el-table-column>
+            </el-table>
           </el-tab-pane>
 
           <el-tab-pane label="卡密配置" name="cardSpecs" v-if="isCardSecretProduct">
@@ -498,7 +573,8 @@ import {
   syncServiceFeeCommission,
   syncAllServiceFeeCommission,
   syncTenantProducts,
-  syncAllTenantProducts
+  syncAllTenantProducts,
+  syncAllTenantProductStatus
 } from '@/api/insurance/InsuranceProductConfig';
 import {
   InsuranceProductConfigVO,
@@ -506,6 +582,7 @@ import {
   ServiceFeeCommissionSyncResult,
   TenantProductSyncResult
 } from '@/api/insurance/InsuranceProductConfig/types';
+import type { InsuranceDynamicField, InsuranceDynamicFieldType } from '@/api/insurance/dynamicForm/types';
 import { listInsuranceProductCategory } from '@/api/insurance/insuranceProductCategory';
 import { ElLoading } from 'element-plus';
 
@@ -515,14 +592,16 @@ const {
   insurance_company,
   insurance_product_status,
   insurance_product_insure_mode,
-  insurance_product_payment_mode
+  insurance_product_payment_mode,
+  insurance_insure_field
 } = toRefs<any>(
   proxy?.useDict(
     'insurance_product_mode',
     'insurance_company',
     'insurance_product_status',
     'insurance_product_insure_mode',
-    'insurance_product_payment_mode'
+    'insurance_product_payment_mode',
+    'insurance_insure_field'
   )
 );
 
@@ -548,6 +627,19 @@ const marketingImagesStr = ref('');
 const marketingTagsArr = ref<string[]>([]);
 const currentCategoryTags = ref<string[]>([]);
 const categoryOptions = ref<any[]>([]);
+type InsuranceDynamicFieldDraft = InsuranceDynamicField & { optionsText?: string };
+const insureFormFields = ref<InsuranceDynamicFieldDraft[]>([]);
+const dynamicFieldTypeOptions: Array<{ label: string; value: InsuranceDynamicFieldType }> = [
+  { label: '文本', value: 'text' },
+  { label: '长文本', value: 'textarea' },
+  { label: '数字', value: 'number' },
+  { label: '金额', value: 'money' },
+  { label: '日期', value: 'date' },
+  { label: '下拉', value: 'select' },
+  { label: '单选', value: 'radio' },
+  { label: '多选', value: 'checkbox' },
+  { label: '地址', value: 'address' }
+];
 const CARD_PRODUCT_MODE = 1;
 const REGULAR_PRODUCT_MODE = 2;
 const CARD_SECRET_PRODUCT_MODE = 3;
@@ -570,6 +662,7 @@ const initFormData: any = {
     proposalUrl: undefined,
     imgUrl: undefined,
     productFeatures: undefined,
+    insureFormSchema: undefined,
     description: undefined,
     status: undefined,
     sort: 0,
@@ -679,7 +772,7 @@ watch([() => form.value.product.productMode, () => form.value.product.insureMode
 // 如果切换成了常规产品，强制切回“基础信息”页签
 watch([isRegularProduct, isCardSecretProduct], ([regular, cardSecret]) => {
   const insuranceTabs = ['liability', 'rules'];
-  const cardHiddenTabs = ['marketing', 'serviceFee'];
+  const cardHiddenTabs = ['marketing', 'serviceFee', 'insureForm'];
   if (regular && activeTab.value !== 'basic') {
     activeTab.value = 'basic';
     return;
@@ -716,6 +809,7 @@ const reset = () => {
   marketingTagsArr.value = [];
   currentCategoryTags.value = [];
   serviceFeeList.value = [];
+  insureFormFields.value = [];
   form.value = JSON.parse(JSON.stringify(initFormData));
   InsuranceProductConfigFormRef.value?.resetFields();
 }
@@ -751,6 +845,7 @@ const handleUpdate = async (row?: InsuranceProductConfigVO) => {
   claimImagesStr.value = form.value.claimImages ? form.value.claimImages.join(',') : '';
   marketingImagesStr.value = form.value.marketingImages ? form.value.marketingImages.join(',') : '';
   marketingTagsArr.value = form.value.product.marketingTags ? form.value.product.marketingTags.split(',') : [];
+  insureFormFields.value = parseInsureFormSchema(form.value.product.insureFormSchema);
   syncProductModes();
 
   // 回显时，根据 categoryId 动态加载该分类的可选标签（包含继承自父分类的标签）
@@ -794,6 +889,7 @@ const submitForm = () => {
       form.value.claimImages = claimImagesStr.value ? claimImagesStr.value.split(',') : [];
       form.value.marketingImages = marketingImagesStr.value ? marketingImagesStr.value.split(',') : [];
       form.value.product.marketingTags = marketingTagsArr.value.length > 0 ? marketingTagsArr.value.join(',') : undefined;
+      form.value.product.insureFormSchema = buildInsureFormSchema();
 
       if (!validateCardSecretConfig()) {
         buttonLoading.value = false;
@@ -814,6 +910,7 @@ const submitForm = () => {
         form.value.marketingCopy = undefined;
         form.value.marketingImages = [];
         form.value.product.serviceFeeConfig = null;
+        form.value.product.insureFormSchema = null;
       } else if (serviceFeeList.value.length > 0) {
         const feePayload = serviceFeeList.value.map((item: any) => ({
           feeRatio: parseFloat((item.feeRatioDisplay / 100).toFixed(4)),
@@ -943,6 +1040,27 @@ const handleSyncAllTenantProducts = async () => {
   }
 };
 
+/** 同步全部平台下架产品状态到租户产品库 */
+const handleSyncAllTenantProductStatus = async () => {
+  await proxy?.$modal.confirm('确认将全部平台已下架产品同步为各租户产品库下架状态吗？该操作不会自动上架租户产品，也不会新增租户产品。');
+  buttonLoading.value = true;
+  const loadingInstance = ElLoading.service({
+    lock: true,
+    text: '正在同步全部产品状态到租户产品库，请稍候...',
+    background: 'rgba(0, 0, 0, 0.7)'
+  });
+  try {
+    const res = await syncAllTenantProductStatus();
+    const data = (res.data || {}) as TenantProductSyncResult;
+    proxy?.$modal.msgSuccess(
+      `同步完成：成功 ${data.successCount ?? 0} 条，跳过 ${data.skippedCount ?? 0} 条，失败 ${data.failCount ?? 0} 条，影响 ${data.tenantCount ?? 0} 个租户。`
+    );
+  } finally {
+    loadingInstance.close();
+    buttonLoading.value = false;
+  }
+};
+
 // ---------------- 动态表格操作方法 ----------------
 const addLiability = () => { form.value.liabilityList.push({ sort: form.value.liabilityList.length + 1, liabilityName: '', insuredAmountDesc: '', description: '' }); }
 const removeLiability = (index: number) => { form.value.liabilityList.splice(index, 1); }
@@ -1043,6 +1161,84 @@ const validateCardSecretConfig = () => {
     return false;
   }
   return true;
+};
+
+const needsOptions = (type?: InsuranceDynamicFieldType) => {
+  return type === 'select' || type === 'radio' || type === 'checkbox';
+};
+
+const addInsureFormField = () => {
+  insureFormFields.value.push({
+    key: '',
+    label: '',
+    type: 'text',
+    required: false,
+    groupName: '',
+    placeholder: '',
+    sort: insureFormFields.value.length + 1,
+    optionsText: ''
+  });
+};
+
+const removeInsureFormField = (index: number) => {
+  insureFormFields.value.splice(index, 1);
+};
+
+const handleInsureFieldChange = (row: InsuranceDynamicFieldDraft, value: string) => {
+  const dict = insurance_insure_field.value?.find((item: any) => item.value === value);
+  row.key = value || '';
+  row.label = dict?.label || '';
+};
+
+const parseOptionsText = (text?: string) => {
+  return (text || '')
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const [label, value] = item.includes('=') ? item.split('=') : [item, item];
+      return { label: label.trim(), value: (value || label).trim() };
+    });
+};
+
+const formatOptionsText = (field: InsuranceDynamicField) => {
+  return (field.options || []).map((item) => (item.label === item.value ? item.label : `${item.label}=${item.value}`)).join('\n');
+};
+
+const parseInsureFormSchema = (schema?: string | InsuranceDynamicField[]) => {
+  if (!schema) return [];
+  try {
+    const parsed = typeof schema === 'string' ? JSON.parse(schema) : schema;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((field: InsuranceDynamicField, index: number) => ({
+      ...field,
+      sort: field.sort ?? index + 1,
+      optionsText: formatOptionsText(field)
+    }));
+  } catch {
+    return [];
+  }
+};
+
+const buildInsureFormSchema = () => {
+  const fields = insureFormFields.value
+    .map((field) => {
+      const item: InsuranceDynamicField = {
+        key: (field.key || '').trim(),
+        label: (field.label || '').trim(),
+        type: field.type,
+        required: !!field.required,
+        groupName: (field.groupName || '').trim() || undefined,
+        placeholder: (field.placeholder || '').trim() || undefined,
+        sort: Number(field.sort || 0)
+      };
+      if (needsOptions(field.type)) {
+        item.options = parseOptionsText(field.optionsText);
+      }
+      return item;
+    })
+    .filter((field) => field.key && field.label && field.type);
+  return fields.length > 0 ? JSON.stringify(fields) : undefined;
 };
 
 // ---------------- 服务费配置 (仅前端展示，暂不提交后端) ----------------

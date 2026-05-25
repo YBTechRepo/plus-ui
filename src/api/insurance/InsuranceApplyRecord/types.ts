@@ -145,6 +145,11 @@ export interface InsuranceApplyRecordVO {
   receiverAddress?: string;
 
   /**
+   * 投保扩展字段值
+   */
+  insureExtraData?: string;
+
+  /**
    * 是否批量单：0-普通单 1-批次主单 2-批量子单
    */
   isBatch: number;
@@ -166,6 +171,11 @@ export interface InsuranceApplyRecordForm extends BaseEntity {
    * 订单号
    */
   orderNo?: string;
+
+  /**
+   * 产品ID
+   */
+  productId?: string | number;
 
   /**
    * 产品ID
@@ -296,6 +306,11 @@ export interface InsuranceApplyRecordForm extends BaseEntity {
    * 收货地址
    */
   receiverAddress?: string;
+
+  /**
+   * 投保扩展字段值
+   */
+  insureExtraData?: string;
 
   /**
    * 是否批量单：0-普通单 1-批次主单 2-批量子单

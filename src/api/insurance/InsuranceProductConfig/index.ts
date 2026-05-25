@@ -140,3 +140,13 @@ export function syncAllTenantProducts() {
     method: 'post'
   });
 }
+
+/**
+ * 将全部平台下架产品状态同步到各租户产品库
+ */
+export function syncAllTenantProductStatus() {
+  return request({
+    url: '/insurance/InsuranceProductConfig/syncAllTenantProductStatus',
+    method: 'post'
+  });
+}

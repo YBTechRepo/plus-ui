@@ -23,6 +23,7 @@
   "dependencies": {
     "@element-plus/icons-vue": "2.3.2",
     "@highlightjs/vue-plugin": "2.1.2",
+    "@vant/area-data": "^2.1.0",
     "@vueup/vue-quill": "1.2.0",
     "@vueuse/core": "13.9.0",
     "animate.css": "4.1.1",

@@ -48,6 +48,16 @@ export function importBatchData(data: FormData) {
   });
 }
 
+// 下载产品专属批量投保模板
+export function downloadBatchTemplate(productId: string | number) {
+  return request({
+    url: '/insurance/batch/template',
+    method: 'get',
+    params: { productId },
+    responseType: 'blob'
+  });
+}
+
 // 预览收馀台数据
 export function previewBatch(data: any) {
   return request({

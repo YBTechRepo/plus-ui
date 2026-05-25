@@ -13,6 +13,11 @@
             <el-form-item label="产品名称" prop="productName">
               <el-input v-model="queryParams.productName" placeholder="请输入产品名称" clearable @keyup.enter="handleQuery" />
             </el-form-item>
+            <el-form-item label="导出产品" prop="productId">
+              <el-select v-model="queryParams.productId" filterable clearable placeholder="请选择产品" style="width: 240px">
+                <el-option v-for="item in productOptions" :key="item.id" :label="item.productName" :value="item.id" />
+              </el-select>
+            </el-form-item>
             <el-form-item label="业务员姓名" prop="agentName">
               <el-input v-model="queryParams.agentName" placeholder="请输入业务员姓名" clearable @keyup.enter="handleQuery" />
             </el-form-item>
@@ -189,6 +194,12 @@
           <el-descriptions title="订单其它信息" :column="2" border>
             <el-descriptions-item label="订单号">{{ detailDrawer.personDetail.orderNo }}</el-descriptions-item>
           </el-descriptions>
+          <template v-if="detailExtraItems.length > 0">
+            <el-divider />
+            <el-descriptions title="扩展字段" :column="2" border>
+              <el-descriptions-item v-for="item in detailExtraItems" :key="item.key" :label="item.label">{{ displayExtraValue(item) }}</el-descriptions-item>
+            </el-descriptions>
+          </template>
         </div>
       </div>
     </el-drawer>
@@ -335,6 +346,18 @@
             </table>
           </div>
 
+          <div v-if="voucherExtraItems.length > 0" class="voucher-section">
+            <div class="section-title">扩展字段</div>
+            <table class="voucher-table">
+              <tbody>
+                <tr v-for="item in voucherExtraItems" :key="item.key">
+                  <td class="label">{{ item.label }}</td>
+                  <td class="value" colspan="3">{{ displayExtraValue(item) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
           <div class="voucher-section">
             <div class="section-title">保障信息</div>
             <table v-if="voucherLiabilityList.length > 0" class="voucher-table">
@@ -419,7 +442,8 @@ import {
   delInsuranceApplyRecord
 } from '@/api/insurance/InsuranceApplyRecord';
 import { InsuranceApplyRecordVO, InsuranceApplyRecordQuery, InsuranceApplyRecordForm } from '@/api/insurance/InsuranceApplyRecord/types';
-import { getProductFull } from '@/api/insurance/InsuranceProductConfig';
+import { getProductFull, listInsuranceProductConfig } from '@/api/insurance/InsuranceProductConfig';
+import type { InsuranceDynamicField } from '@/api/insurance/dynamicForm/types';
 import { useUserStore } from '@/store/modules/user';
 import request from '@/utils/request';
 import { blobValidate, parseTime } from '@/utils/ruoyi';
@@ -436,6 +460,7 @@ const InsuranceApplyRecordList = ref<InsuranceApplyRecordVO[]>([]);
 const loading = ref(true);
 const showSearch = ref(true);
 const total = ref(0);
+const productOptions = ref<any[]>([]);
 
 const queryFormRef = ref<ElFormInstance>();
 const hasApprovePermission = computed(
@@ -468,6 +493,7 @@ const data = reactive<PageData<InsuranceApplyRecordForm, InsuranceApplyRecordQue
     pageNum: 1,
     pageSize: 10,
     orderNo: undefined,
+    productId: undefined,
     productCode: undefined,
     productName: undefined,
     agentName: undefined,
@@ -604,6 +630,50 @@ const voucherClauseFiles = computed(() => normalizeArray(voucherDialog.productDa
 const voucherClaimInstructions = computed(() => normalizeArray(voucherDialog.productData?.claimInstructions));
 const showBatchVoucherList = computed(() => Number(voucherDialog.orderInfo?.isBatch) === 1);
 const showVoucherPersonInfo = computed(() => Number(voucherDialog.orderInfo?.insureMode) === 1 && !showBatchVoucherList.value);
+const voucherExtraItems = computed(() => buildExtraItems(voucherDialog.productData?.product?.insureFormSchema, voucherDialog.orderInfo?.insureExtraData || voucherDialog.personDetail?.insureExtraData));
+const detailExtraItems = computed(() => buildExtraItems(detailDrawer.productData?.product?.insureFormSchema, detailDrawer.personDetail?.insureExtraData));
+
+const parseJsonValue = (value: any, fallback: any) => {
+  if (!value) return fallback;
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+};
+
+const buildExtraItems = (schemaValue: any, dataValue: any) => {
+  const schema = parseJsonValue(schemaValue, []) as InsuranceDynamicField[];
+  const data = parseJsonValue(dataValue, {}) as Record<string, any>;
+  if (!Array.isArray(schema) || !data || typeof data !== 'object') return [];
+  return schema
+    .filter((field) => field?.key && field?.label && Object.prototype.hasOwnProperty.call(data, field.key))
+    .sort((a, b) => Number(a.sort || 0) - Number(b.sort || 0))
+    .map((field) => ({ key: field.key, label: field.label, type: field.type, options: field.options || [], value: data[field.key] }));
+};
+
+const getExtraOptionLabel = (field: Pick<InsuranceDynamicField, 'options'>, value: any) => {
+  const text = String(value ?? '');
+  const matched = (field.options || []).find((option) => option.value === text || option.label === text);
+  return matched?.label || text;
+};
+
+const displayExtraValue = (item: any) => {
+  const value = item?.value;
+  if (item?.type === 'address' && value && typeof value === 'object' && !Array.isArray(value)) {
+    const text = [value.regionText, value.detail].filter(Boolean).join(' ');
+    return text || '--';
+  }
+  if (Array.isArray(value)) {
+    return value.length > 0 ? value.map((val) => getExtraOptionLabel(item, val)).join('、') : '--';
+  }
+  if (item?.type === 'select' || item?.type === 'radio' || item?.type === 'checkbox') {
+    const text = getExtraOptionLabel(item, value);
+    return hasValue(text) ? text : '--';
+  }
+  return displayValue(value);
+};
 
 const handleGoPayment = (row: InsuranceApplyRecordVO) => {
   router.push({ path: '/insurance/tenant-product/payment', query: { orderNo: row.orderNo } });
@@ -783,13 +853,20 @@ const submitApprove = () => {
 
 /** 导出按钮操作 */
 const handleExport = () => {
+  const selectedProduct = productOptions.value.find((item: any) => String(item.id) === String(queryParams.value.productId));
+  const exportName = queryParams.value.productId && selectedProduct?.productName ? `投保记录_${selectedProduct.productName}.xlsx` : '投保记录_多产品.xlsx';
   proxy?.download(
     'insurance/InsuranceApplyRecord/export',
     {
       ...queryParams.value
     },
-    `InsuranceApplyRecord_${new Date().getTime()}.xlsx`
+    exportName
   );
+};
+
+const getProductOptions = async () => {
+  const res = await listInsuranceProductConfig({ pageNum: 1, pageSize: 9999 } as any);
+  productOptions.value = res.rows || [];
 };
 
 // ===================== 详情下钻逻辑 =====================
@@ -800,7 +877,8 @@ const detailDrawer = reactive({
   isFromBatch: false,
   currentOrderNo: '',
   list: [] as any[],
-  personDetail: {} as any
+  personDetail: {} as any,
+  productData: {} as any
 });
 
 const drawerTitle = computed(() => {
@@ -829,6 +907,7 @@ const openDetailDrawer = async (row: InsuranceApplyRecordVO) => {
 const fetchSubOrders = async (batchNo: string) => {
   detailDrawer.loading = true;
   try {
+    detailDrawer.productData = {};
     const res = (await request({
       url: '/insurance/InsuranceApplyRecord/subOrders',
       method: 'get',
@@ -849,6 +928,12 @@ const fetchPersonDetail = async (orderNo: string) => {
       params: { orderNo: orderNo }
     })) as any;
     detailDrawer.personDetail = res.data || {};
+    if (detailDrawer.personDetail.productId) {
+      const productRes = await getProductFull(detailDrawer.personDetail.productId);
+      detailDrawer.productData = productRes.data || productRes || {};
+    } else {
+      detailDrawer.productData = {};
+    }
     detailDrawer.viewType = 'PERSON_DETAIL';
   } finally {
     detailDrawer.loading = false;
@@ -861,6 +946,7 @@ const backToBatchList = () => {
 
 onMounted(() => {
   getList();
+  getProductOptions();
 });
 </script>
 

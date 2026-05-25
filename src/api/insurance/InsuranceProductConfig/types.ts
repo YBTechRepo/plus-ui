@@ -104,6 +104,11 @@ export interface InsuranceProductConfigVO {
   serviceFeeConfig?: string;
 
   /**
+   * 投保扩展字段模板
+   */
+  insureFormSchema?: string;
+
+  /**
    * 理赔说明步骤列表
    */
   claimInstructions?: ClaimStepItem[];
@@ -215,6 +220,11 @@ export interface InsuranceProductConfigForm extends BaseEntity {
    * 服务费配置
    */
   serviceFeeConfig?: string;
+
+  /**
+   * 投保扩展字段模板
+   */
+  insureFormSchema?: string;
 
   /**
    * 理赔说明步骤列表

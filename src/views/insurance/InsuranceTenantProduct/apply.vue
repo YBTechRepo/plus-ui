@@ -194,6 +194,11 @@
             <el-alert v-else type="success" :closable="false" title="被保人信息同投保人" />
           </div>
         </el-card>
+
+        <el-card v-if="dynamicFields.length > 0" shadow="never" class="form-section">
+          <template #header><span class="section-title">扩展字段</span></template>
+          <dynamic-insurance-form ref="dynamicFormRef" v-model="extraForm" :fields="dynamicFields" />
+        </el-card>
       </el-form>
     </el-card>
   </div>
@@ -202,6 +207,9 @@
 <script setup name="InsuranceTenantProductApply" lang="ts">
 import { getInsuranceApplyRecordByOrderNo, saveInsureInfo } from '@/api/insurance/InsuranceApplyRecord';
 import { getInsuranceCardOrderByOrderNo, saveCardOrderInfo } from '@/api/insurance/InsuranceCardOrder';
+import { getProductFull } from '@/api/insurance/InsuranceProductConfig';
+import DynamicInsuranceForm from '@/views/insurance/components/DynamicInsuranceForm.vue';
+import type { InsuranceDynamicField } from '@/api/insurance/dynamicForm/types';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const router = useRouter();
@@ -209,8 +217,11 @@ const route = useRoute();
 const { insurance_card_company } = toRefs<any>(proxy?.useDict('insurance_card_company'));
 const applyFormRef = ref<ElFormInstance>();
 const cardApplyFormRef = ref<ElFormInstance>();
+const dynamicFormRef = ref<InstanceType<typeof DynamicInsuranceForm>>();
 const submitting = ref(false);
 const orderInfo = ref<any>({});
+const dynamicFields = ref<InsuranceDynamicField[]>([]);
+const extraForm = ref<Record<string, any>>({});
 const isCardOrderRoute = computed(() => route.query.orderType === 'card');
 const isCardProduct = computed(() => Number(orderInfo.value?.productMode) === 1);
 const isCardSecretOrder = computed(
@@ -317,6 +328,7 @@ const fetchOrder = async () => {
     router.back();
     return;
   }
+  await loadDynamicFields(orderInfo.value.productId);
   cardForm.orderNo = form.orderNo;
   cardForm.receiverName = orderInfo.value.receiverName || orderInfo.value.customerName || '';
   cardForm.receiverMobile = orderInfo.value.receiverMobile || orderInfo.value.customerMobile || '';
@@ -329,6 +341,26 @@ const fetchOrder = async () => {
     form.insuredList[0].insuredPhone = orderInfo.value.customerMobile || '';
   }
   limitCardProductInsured();
+};
+
+const loadDynamicFields = async (productId?: string | number) => {
+  dynamicFields.value = [];
+  extraForm.value = {};
+  if (!productId || isCardSecretOrder.value) return;
+  const res = await getProductFull(productId);
+  const schema = res.data?.product?.insureFormSchema;
+  if (!schema) return;
+  try {
+    const fields = typeof schema === 'string' ? JSON.parse(schema) : schema;
+    dynamicFields.value = Array.isArray(fields) ? fields.filter((field) => field?.key && field?.label && field?.type) : [];
+    extraForm.value = dynamicFields.value.reduce((data, field) => {
+      data[field.key] = field.type === 'checkbox' ? [] : undefined;
+      return data;
+    }, {} as Record<string, any>);
+  } catch {
+    dynamicFields.value = [];
+    extraForm.value = {};
+  }
 };
 
 const addInsured = () => {
@@ -357,6 +389,8 @@ const submitForm = () => {
   limitCardProductInsured();
   applyFormRef.value?.validate(async (valid: boolean) => {
     if (!valid) return;
+    const extraValid = await dynamicFormRef.value?.validate();
+    if (!extraValid) return;
     submitting.value = true;
     try {
       await saveInsureInfo(form.orderNo, buildDto());
@@ -415,7 +449,8 @@ const buildDto = () => {
         insuredPhone: insured.insuredPhone,
         insuredAddress: `${insured.insuredArea} ${insured.insuredDetailAddress}`.trim()
       };
-    })
+    }),
+    extraData: extraForm.value
   };
 };
 

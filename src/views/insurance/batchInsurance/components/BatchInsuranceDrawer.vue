@@ -125,6 +125,38 @@
           </el-table-column>
         </el-table-column>
 
+        <el-table-column v-if="dynamicFields.length > 0" label="投保扩展字段" align="center">
+          <el-table-column v-for="field in dynamicFields" :key="field.key" :label="field.label" min-width="180" show-overflow-tooltip>
+            <template #default="scope">
+              <template v-if="!scope.row.isEditing">
+                <span>{{ displayExtraValue(scope.row.extraData?.[field.key]) }}</span>
+              </template>
+              <template v-else-if="field.type === 'select' || field.type === 'radio'">
+                <el-select v-model="scope.row.extraData[field.key]" size="small" clearable class="w-full">
+                  <el-option v-for="option in field.options || []" :key="option.value" :label="option.label" :value="option.value" />
+                </el-select>
+              </template>
+              <template v-else-if="field.type === 'checkbox'">
+                <el-select v-model="scope.row.extraData[field.key]" size="small" multiple clearable class="w-full">
+                  <el-option v-for="option in field.options || []" :key="option.value" :label="option.label" :value="option.value" />
+                </el-select>
+              </template>
+              <template v-else-if="field.type === 'address'">
+                <div class="extra-address-editor">
+                  <el-input v-model="ensureExtraAddress(scope.row, field.key).regionText" size="small" placeholder="地区" clearable />
+                  <el-input v-model="ensureExtraAddress(scope.row, field.key).detail" size="small" placeholder="详细地址" clearable />
+                </div>
+              </template>
+              <template v-else>
+                <el-input v-model="scope.row.extraData[field.key]" size="small" clearable />
+              </template>
+              <div v-if="scope.row.errors?.[`extraData.${field.key}`]" class="row-error">
+                <el-icon><Warning /></el-icon> {{ scope.row.errors[`extraData.${field.key}`] }}
+              </div>
+            </template>
+          </el-table-column>
+        </el-table-column>
+
         <el-table-column fixed="right" label="操作" width="130" align="center">
           <template #default="scope">
             <el-button v-if="!scope.row.isEditing" link type="primary" size="small" @click="scope.row.isEditing = true">修改</el-button>
@@ -211,11 +243,14 @@
 import { computed, ref, watch } from 'vue';
 import { ElLoading, ElMessage, ElMessageBox } from 'element-plus';
 import { Document, UploadFilled, Warning } from '@element-plus/icons-vue';
-import { getConfigKey } from '@/api/system/config';
 import { getDicts } from '@/api/system/dict/data';
 import { getUserAccount } from '@/api/finance/myWallet';
-import { importBatchData, previewBatch, submitBatch } from '@/api/insurance/batchInsurance';
+import { downloadBatchTemplate, importBatchData, previewBatch, submitBatch } from '@/api/insurance/batchInsurance';
+import { getProductFull } from '@/api/insurance/InsuranceProductConfig';
+import type { InsuranceDynamicField } from '@/api/insurance/dynamicForm/types';
 import { useUserStore } from '@/store/modules/user';
+import { blobValidate } from '@/utils/ruoyi';
+import FileSaver from 'file-saver';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -243,6 +278,7 @@ const auditList = ref<any[]>([]);
 const previewLoading = ref(false);
 const cashierData = ref<any>(null);
 const submittingBatch = ref(false);
+const dynamicFields = ref<InsuranceDynamicField[]>([]);
 
 const validCount = computed(() => auditList.value.filter((item) => item.isValid).length);
 const invalidCount = computed(() => auditList.value.filter((item) => !item.isValid).length);
@@ -282,6 +318,17 @@ const fetchWalletBalance = async () => {
   }
 };
 
+const fetchDynamicFields = async () => {
+  dynamicFields.value = [];
+  if (!props.product?.id) return;
+  try {
+    const res = (await getProductFull(props.product.id)) as any;
+    dynamicFields.value = parseDynamicFields(res.data?.product?.insureFormSchema || res.product?.insureFormSchema);
+  } catch (err) {
+    console.error('Failed to fetch dynamic fields:', err);
+  }
+};
+
 const resetDrawer = () => {
   wizardStep.value = 1;
   uploadedFile.value = null;
@@ -299,35 +346,29 @@ watch(
       resetDrawer();
       fetchDicts();
       fetchWalletBalance();
+      fetchDynamicFields();
     }
   }
 );
 
 const downloadTemplate = async () => {
+  if (!props.product?.id) {
+    ElMessage.warning('缺少产品信息，无法下载模板');
+    return;
+  }
   try {
-    const res = await getConfigKey('insurance.batch.templateUrl');
-    if (res.data) {
-      const fileName = '人员清单导入模板.xlsx';
-      fetch(res.data)
-        .then((response) => response.blob())
-        .then((blob) => {
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.setAttribute('download', fileName);
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(url);
-        })
-        .catch(() => {
-          window.open(res.data, '_blank');
-        });
+    const resp = (await downloadBatchTemplate(props.product.id)) as unknown as Blob;
+    const isBlob = await blobValidate(resp);
+    if (isBlob) {
+      FileSaver.saveAs(new Blob([resp]), '人员清单导入模板.xlsx');
     } else {
-      ElMessage.warning('后台参数 [insurance.batch.templateUrl] 未配置');
+      const resText = await new Blob([resp]).text();
+      const rspObj = JSON.parse(resText);
+      ElMessage.error(rspObj.msg || '模板下载失败');
     }
   } catch (err) {
     console.error(err);
+    ElMessage.error('模板下载失败');
   }
 };
 
@@ -355,6 +396,7 @@ const parseExcelFile = async () => {
   try {
     const formData = new FormData();
     formData.append('file', uploadedFile.value.raw);
+    formData.append('productId', String(props.product?.id || ''));
     const res = (await importBatchData(formData)) as any;
     if (res.code === 200 && res.data) {
       auditList.value = res.data.auditList || [];
@@ -392,6 +434,9 @@ const saveRowEdit = (row: any) => {
     row.errors.phone = '被保人手机必须11位';
     valid = false;
   }
+  if (!validateDynamicRow(row)) {
+    valid = false;
+  }
   row.isValid = valid;
   if (valid) {
     row.isEditing = false;
@@ -399,6 +444,59 @@ const saveRowEdit = (row: any) => {
   } else {
     ElMessage.warning('校验仍有误，请继续修改');
   }
+};
+
+const parseDynamicFields = (schema?: string | InsuranceDynamicField[]) => {
+  if (!schema) return [];
+  try {
+    const parsed = typeof schema === 'string' ? JSON.parse(schema) : schema;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((field: InsuranceDynamicField) => field?.key && field?.label && field?.type)
+      .sort((a: InsuranceDynamicField, b: InsuranceDynamicField) => Number(a.sort || 0) - Number(b.sort || 0));
+  } catch {
+    return [];
+  }
+};
+
+const displayExtraValue = (value: any) => {
+  if (Array.isArray(value)) return value.length > 0 ? value.join('、') : '--';
+  if (value && typeof value === 'object') return [value.regionText, value.detail].filter(Boolean).join(' ') || '--';
+  return value || '--';
+};
+
+const ensureExtraAddress = (row: any, key: string) => {
+  row.extraData = row.extraData || {};
+  if (!row.extraData[key] || typeof row.extraData[key] !== 'object' || Array.isArray(row.extraData[key])) {
+    row.extraData[key] = { regionText: '', detail: '' };
+  }
+  return row.extraData[key];
+};
+
+const getExtraText = (value: any) => {
+  if (Array.isArray(value)) return value.join('、');
+  if (value && typeof value === 'object') return [value.regionText, value.detail].filter(Boolean).join(' ');
+  return value === undefined || value === null ? '' : String(value);
+};
+
+const validateDynamicRow = (row: any) => {
+  row.extraData = row.extraData || {};
+  let valid = true;
+  dynamicFields.value.forEach((field) => {
+    const value = row.extraData[field.key];
+    const text = getExtraText(value);
+    if (field.required && !text) {
+      row.errors[`extraData.${field.key}`] = `${field.label}不能为空`;
+      valid = false;
+      return;
+    }
+    if (!text) return;
+    if ((field.type === 'number' || field.type === 'money') && Number.isNaN(Number(text))) {
+      row.errors[`extraData.${field.key}`] = `${field.label}必须为数字`;
+      valid = false;
+    }
+  });
+  return valid;
 };
 
 const deleteRow = (index: number) => {
@@ -517,6 +615,12 @@ const submitBatchPay = async () => {
 .row-error {
   margin-top: 4px;
   font-size: 12px;
+}
+
+.extra-address-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .cashier-card {

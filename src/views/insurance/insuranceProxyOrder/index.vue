@@ -178,6 +178,12 @@
           <el-descriptions title="订单其它信息" :column="2" border>
             <el-descriptions-item label="订单号">{{ detailDrawer.personDetail.orderNo }}</el-descriptions-item>
           </el-descriptions>
+          <template v-if="detailExtraItems.length > 0">
+            <el-divider />
+            <el-descriptions title="扩展字段" :column="2" border>
+              <el-descriptions-item v-for="item in detailExtraItems" :key="item.key" :label="item.label">{{ displayExtraValue(item) }}</el-descriptions-item>
+            </el-descriptions>
+          </template>
         </div>
       </div>
     </el-drawer>
@@ -187,6 +193,7 @@
 <script setup name="InsuranceProxyOrder" lang="ts">
 import { changeInsuranceProxyOrderStatus, listInsuranceProxyOrder } from '@/api/insurance/insuranceProxyOrder';
 import { InsuranceProxyOrderVO, InsuranceProxyOrderQuery } from '@/api/insurance/insuranceProxyOrder/types';
+import type { InsuranceDynamicField } from '@/api/insurance/dynamicForm/types';
 import { useUserStore } from '@/store/modules/user';
 import request from '@/utils/request';
 
@@ -293,6 +300,58 @@ const drawerTitle = computed(() => {
   return `保单人员明细 - ${detailDrawer.personDetail.orderNo || detailDrawer.currentOrderNo}`;
 });
 
+const detailExtraItems = computed(() => buildExtraItems(detailDrawer.personDetail?.insureFormSchema, detailDrawer.personDetail?.insureExtraData));
+
+const hasValue = (value: unknown) => {
+  return value !== undefined && value !== null && value !== '';
+};
+
+const displayValue = (value: unknown) => {
+  return hasValue(value) ? value : '--';
+};
+
+const parseJsonValue = (value: any, fallback: any) => {
+  if (!value) return fallback;
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+};
+
+const buildExtraItems = (schemaValue: any, dataValue: any) => {
+  const schema = parseJsonValue(schemaValue, []) as InsuranceDynamicField[];
+  const data = parseJsonValue(dataValue, {}) as Record<string, any>;
+  if (!Array.isArray(schema) || !data || typeof data !== 'object') return [];
+  return schema
+    .filter((field) => field?.key && field?.label && Object.prototype.hasOwnProperty.call(data, field.key))
+    .sort((a, b) => Number(a.sort || 0) - Number(b.sort || 0))
+    .map((field) => ({ key: field.key, label: field.label, type: field.type, options: field.options || [], value: data[field.key] }));
+};
+
+const getExtraOptionLabel = (field: Pick<InsuranceDynamicField, 'options'>, value: any) => {
+  const text = String(value ?? '');
+  const matched = (field.options || []).find((option) => option.value === text || option.label === text);
+  return matched?.label || text;
+};
+
+const displayExtraValue = (item: any) => {
+  const value = item?.value;
+  if (item?.type === 'address' && value && typeof value === 'object' && !Array.isArray(value)) {
+    const text = [value.regionText, value.detail].filter(Boolean).join(' ');
+    return text || '--';
+  }
+  if (Array.isArray(value)) {
+    return value.length > 0 ? value.map((val) => getExtraOptionLabel(item, val)).join('、') : '--';
+  }
+  if (item?.type === 'select' || item?.type === 'radio' || item?.type === 'checkbox') {
+    const text = getExtraOptionLabel(item, value);
+    return hasValue(text) ? text : '--';
+  }
+  return displayValue(value);
+};
+
 /** 打开详情主入口 */
 const openDetailDrawer = async (row: InsuranceProxyOrderVO) => {
   detailDrawer.currentOrderNo = row.orderNo;
@@ -317,7 +376,7 @@ const fetchSubOrders = async (batchNo: string) => {
   detailDrawer.loading = true;
   try {
     const res = (await request({
-      url: '/insurance/InsuranceApplyRecord/subOrders',
+      url: '/insurance/insuranceProxyOrder/subOrders',
       method: 'get',
       params: { batchOrderNo: batchNo }
     })) as any;
@@ -332,7 +391,7 @@ const fetchPersonDetail = async (orderNo: string) => {
   detailDrawer.loading = true;
   try {
     const res = (await request({
-      url: '/insurance/InsuranceApplyRecord/personDetail',
+      url: '/insurance/insuranceProxyOrder/personDetail',
       method: 'get',
       params: { orderNo: orderNo }
     })) as any;
