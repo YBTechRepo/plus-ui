@@ -337,6 +337,22 @@ export interface ServiceFeeCommissionSyncResult {
   successCount: number;
   skippedCount: number;
   failCount: number;
+  details?: SyncResultDetail[];
 }
 
 export type TenantProductSyncResult = ServiceFeeCommissionSyncResult;
+
+export interface SyncResultDetail {
+  type?: 'commission' | 'tenantProduct' | 'status' | string;
+  action?: string;
+  productId?: string | number;
+  productCode?: string;
+  productName?: string;
+  tenantCount?: number;
+  successCount?: number;
+  failCount?: number;
+  addCount?: number;
+  updateCount?: number;
+  status?: string;
+  statusLabel?: string;
+}

@@ -384,7 +384,7 @@
                 v-for="item in voucherClauseFiles"
                 :key="`${item.clauseName}-${item.fileUrl}`"
                 type="primary"
-                :underline="false"
+                underline="never"
                 @click="openFile(item.fileUrl)"
               >
                 《{{ displayValue(item.clauseName) }}》

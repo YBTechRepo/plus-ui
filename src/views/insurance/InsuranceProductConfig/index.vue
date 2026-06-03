@@ -56,7 +56,7 @@
               :loading="buttonLoading"
               @click="handleSyncCommission"
               v-hasPermi="['insurance:InsuranceProductConfig:syncCommission']"
-              >同步佣金</el-button
+              >同步选中佣金配置</el-button
             >
           </el-col>
           <el-col :span="1.5">
@@ -67,7 +67,7 @@
               :loading="buttonLoading"
               @click="handleSyncAllCommission"
               v-hasPermi="['insurance:InsuranceProductConfig:syncCommission']"
-              >同步全部佣金</el-button
+              >同步全部佣金配置</el-button
             >
           </el-col>
           <el-col :span="1.5">
@@ -79,7 +79,7 @@
               :loading="buttonLoading"
               @click="handleSyncTenantProducts"
               v-hasPermi="['insurance:InsuranceProductConfig:syncProduct']"
-              >同步产品</el-button
+              >同步选中新增产品</el-button
             >
           </el-col>
           <el-col :span="1.5">
@@ -90,7 +90,7 @@
               :loading="buttonLoading"
               @click="handleSyncAllTenantProducts"
               v-hasPermi="['insurance:InsuranceProductConfig:syncProduct']"
-              >同步全部产品</el-button
+              >同步全部新增产品</el-button
             >
           </el-col>
           <el-col :span="1.5">
@@ -101,7 +101,7 @@
               :loading="buttonLoading"
               @click="handleSyncAllTenantProductStatus"
               v-hasPermi="['insurance:InsuranceProductConfig:syncProduct']"
-              >同步全部产品状态</el-button
+              >同步全部上下架状态</el-button
             >
           </el-col>
           <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
@@ -580,11 +580,12 @@ import {
   InsuranceProductConfigVO,
   InsuranceProductConfigQuery,
   ServiceFeeCommissionSyncResult,
-  TenantProductSyncResult
+  TenantProductSyncResult,
+  SyncResultDetail
 } from '@/api/insurance/InsuranceProductConfig/types';
 import type { InsuranceDynamicField, InsuranceDynamicFieldType } from '@/api/insurance/dynamicForm/types';
 import { listInsuranceProductCategory } from '@/api/insurance/insuranceProductCategory';
-import { ElLoading } from 'element-plus';
+import { ElLoading, ElMessageBox } from 'element-plus';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const {
@@ -648,6 +649,103 @@ const PLATFORM_INSURE_MODE = 1;
 const CARD_SECRET_INSURE_MODE = 2;
 const REGULAR_PAYMENT_MODE = 0;
 const BALANCE_PAYMENT_MODE = 1;
+
+const toInputNumberValue = (value: any, fallback: number | undefined | null = undefined) => {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+};
+
+const normalizeInputNumberValues = () => {
+  const product = form.value.product || {};
+  product.minPremium = toInputNumberValue(product.minPremium);
+  product.sort = toInputNumberValue(product.sort, 0);
+  product.freight = toInputNumberValue(product.freight, 0);
+
+  form.value.liabilityList = (form.value.liabilityList || []).map((item: any, index: number) => ({
+    ...item,
+    sort: toInputNumberValue(item.sort, index + 1)
+  }));
+  form.value.insureNotice = (form.value.insureNotice || []).map((item: any, index: number) => ({
+    ...item,
+    sort: toInputNumberValue(item.sort, index + 1)
+  }));
+  form.value.clauseFiles = (form.value.clauseFiles || []).map((item: any, index: number) => ({
+    ...item,
+    sort: toInputNumberValue(item.sort, index + 1)
+  }));
+  form.value.claimInstructions = (form.value.claimInstructions || []).map((item: any, index: number) => ({
+    ...item,
+    sort: toInputNumberValue(item.sort, index + 1)
+  }));
+  form.value.cardSpecs = (form.value.cardSpecs || []).map((item: any, index: number) => ({
+    ...item,
+    price: toInputNumberValue(item.price, 0),
+    stock: toInputNumberValue(item.stock, 0),
+    sort: toInputNumberValue(item.sort, index + 1),
+    status: toInputNumberValue(item.status, 0)
+  }));
+};
+
+const parseServiceFeeRatioDisplay = (item: any) => {
+  const displayValue = toInputNumberValue(item.feeRatioDisplay, null);
+  if (displayValue !== null) {
+    return displayValue;
+  }
+
+  const ratioValue = toInputNumberValue(item.feeRatio, 0) || 0;
+  return ratioValue > 1 ? ratioValue : parseFloat((ratioValue * 100).toFixed(2));
+};
+
+const escapeHtml = (value: any) => {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+};
+
+const getProductDisplayName = (detail: SyncResultDetail) => {
+  const name = detail.productName || `产品ID：${detail.productId ?? '-'}`;
+  return detail.productCode ? `${name}（${detail.productCode}）` : name;
+};
+
+const renderSyncDetail = (detail: SyncResultDetail) => {
+  const productName = escapeHtml(getProductDisplayName(detail));
+  if (detail.type === 'commission') {
+    return `${productName}：同步佣金配置到 ${detail.tenantCount ?? 0} 个租户`;
+  }
+  if (detail.type === 'tenantProduct') {
+    return `${productName}：新增 ${detail.addCount ?? 0} 个租户，刷新 ${detail.updateCount ?? 0} 个租户`;
+  }
+  if (detail.type === 'status') {
+    return `${productName}：状态变更为 ${escapeHtml(detail.statusLabel || detail.status || '-')}，影响 ${detail.tenantCount ?? 0} 个租户`;
+  }
+  return `${productName}：${escapeHtml(detail.action || '已同步')}，影响 ${detail.tenantCount ?? 0} 个租户`;
+};
+
+const showSyncResultDialog = async (title: string, data: ServiceFeeCommissionSyncResult | TenantProductSyncResult) => {
+  const details = data.details || [];
+  const summaryHtml = `
+    <div style="margin-bottom: 12px; line-height: 24px;">
+      <div>成功：${data.successCount ?? 0} 条，跳过：${data.skippedCount ?? 0} 条，失败：${data.failCount ?? 0} 条</div>
+      <div>产品数：${data.productCount ?? 0} 个，影响租户：${data.tenantCount ?? 0} 个</div>
+    </div>
+  `;
+  const detailHtml = details.length
+    ? `<div style="max-height: 360px; overflow: auto; border-top: 1px solid #ebeef5; padding-top: 8px;">
+        ${details.map((item) => `<div style="line-height: 24px;">${renderSyncDetail(item)}</div>`).join('')}
+      </div>`
+    : '<div style="border-top: 1px solid #ebeef5; padding-top: 8px; color: #909399;">本次没有产生可展示的产品变动明细。</div>';
+
+  await ElMessageBox.alert(summaryHtml + detailHtml, title, {
+    dangerouslyUseHTMLString: true,
+    confirmButtonText: '知道了'
+  });
+};
 
 // 🌟 重构超级大对象的初始值
 const initFormData: any = {
@@ -838,6 +936,7 @@ const handleUpdate = async (row?: InsuranceProductConfigVO) => {
   form.value.clauseFiles = form.value.clauseFiles || [];
   form.value.claimInstructions = form.value.claimInstructions || [];
   form.value.cardSpecs = form.value.cardSpecs || [];
+  normalizeInputNumberValues();
   normalizeProductFreight();
 
   // 将后端传来的图片 JSON 数组，用逗号连接成字符串赋值给图片组件
@@ -862,7 +961,7 @@ const handleUpdate = async (row?: InsuranceProductConfigVO) => {
     if (feeConfig) {
       const parsed = typeof feeConfig === 'string' ? JSON.parse(feeConfig) : feeConfig;
       serviceFeeList.value = (parsed as any[]).map((item: any) => ({
-        feeRatioDisplay: parseFloat((Number(item.feeRatio) * 100).toFixed(2)),
+        feeRatioDisplay: parseServiceFeeRatioDisplay(item),
         effectiveStartTime: item.effectiveStartTime,
         effectiveEndTime: item.effectiveEndTime
       }));
@@ -951,7 +1050,7 @@ const handleDelete = async (row?: InsuranceProductConfigVO) => {
 /** 同步产品服务费到租户佣金配置 */
 const handleSyncCommission = async () => {
   if (ids.value.length === 0) {
-    proxy?.$modal.msgWarning('请先选择需要同步佣金的产品');
+    proxy?.$modal.msgWarning('请先选择需要同步佣金配置的产品');
     return;
   }
   await proxy?.$modal.confirm(`确认将已选 ${ids.value.length} 个产品的服务费配置同步到各租户佣金配置吗？该操作会覆盖租户已有佣金配置。`);
@@ -961,15 +1060,16 @@ const handleSyncCommission = async () => {
     text: '正在同步产品佣金配置，请稍候...',
     background: 'rgba(0, 0, 0, 0.7)'
   });
+  let data: ServiceFeeCommissionSyncResult | undefined;
   try {
     const res = await syncServiceFeeCommission(ids.value);
-    const data = (res.data || {}) as ServiceFeeCommissionSyncResult;
-    proxy?.$modal.msgSuccess(
-      `同步完成：成功 ${data.successCount ?? 0} 条，跳过 ${data.skippedCount ?? 0} 条，失败 ${data.failCount ?? 0} 条，影响 ${data.tenantCount ?? 0} 个租户。`
-    );
+    data = (res.data || {}) as ServiceFeeCommissionSyncResult;
   } finally {
     loadingInstance.close();
     buttonLoading.value = false;
+  }
+  if (data) {
+    await showSyncResultDialog('同步选中佣金配置结果', data);
   }
 };
 
@@ -982,15 +1082,16 @@ const handleSyncAllCommission = async () => {
     text: '正在同步全部产品佣金配置，请稍候...',
     background: 'rgba(0, 0, 0, 0.7)'
   });
+  let data: ServiceFeeCommissionSyncResult | undefined;
   try {
     const res = await syncAllServiceFeeCommission();
-    const data = (res.data || {}) as ServiceFeeCommissionSyncResult;
-    proxy?.$modal.msgSuccess(
-      `同步完成：成功 ${data.successCount ?? 0} 条，跳过 ${data.skippedCount ?? 0} 条，失败 ${data.failCount ?? 0} 条，影响 ${data.tenantCount ?? 0} 个租户。`
-    );
+    data = (res.data || {}) as ServiceFeeCommissionSyncResult;
   } finally {
     loadingInstance.close();
     buttonLoading.value = false;
+  }
+  if (data) {
+    await showSyncResultDialog('同步全部佣金配置结果', data);
   }
 };
 
@@ -1007,15 +1108,16 @@ const handleSyncTenantProducts = async () => {
     text: '正在同步产品到租户产品库，请稍候...',
     background: 'rgba(0, 0, 0, 0.7)'
   });
+  let data: TenantProductSyncResult | undefined;
   try {
     const res = await syncTenantProducts(ids.value);
-    const data = (res.data || {}) as TenantProductSyncResult;
-    proxy?.$modal.msgSuccess(
-      `同步完成：成功 ${data.successCount ?? 0} 条，跳过 ${data.skippedCount ?? 0} 条，失败 ${data.failCount ?? 0} 条，影响 ${data.tenantCount ?? 0} 个租户。`
-    );
+    data = (res.data || {}) as TenantProductSyncResult;
   } finally {
     loadingInstance.close();
     buttonLoading.value = false;
+  }
+  if (data) {
+    await showSyncResultDialog('同步选中新增产品结果', data);
   }
 };
 
@@ -1028,36 +1130,38 @@ const handleSyncAllTenantProducts = async () => {
     text: '正在同步全部产品到租户产品库，请稍候...',
     background: 'rgba(0, 0, 0, 0.7)'
   });
+  let data: TenantProductSyncResult | undefined;
   try {
     const res = await syncAllTenantProducts();
-    const data = (res.data || {}) as TenantProductSyncResult;
-    proxy?.$modal.msgSuccess(
-      `同步完成：成功 ${data.successCount ?? 0} 条，跳过 ${data.skippedCount ?? 0} 条，失败 ${data.failCount ?? 0} 条，影响 ${data.tenantCount ?? 0} 个租户。`
-    );
+    data = (res.data || {}) as TenantProductSyncResult;
   } finally {
     loadingInstance.close();
     buttonLoading.value = false;
   }
+  if (data) {
+    await showSyncResultDialog('同步全部新增产品结果', data);
+  }
 };
 
-/** 同步全部平台下架产品状态到租户产品库 */
+/** 同步全部平台产品状态到租户产品库 */
 const handleSyncAllTenantProductStatus = async () => {
-  await proxy?.$modal.confirm('确认将全部平台已下架产品同步为各租户产品库下架状态吗？该操作不会自动上架租户产品，也不会新增租户产品。');
+  await proxy?.$modal.confirm('确认将全部平台产品状态同步到各租户产品库吗？该操作会同步上架和下架状态，但不会新增租户产品。');
   buttonLoading.value = true;
   const loadingInstance = ElLoading.service({
     lock: true,
     text: '正在同步全部产品状态到租户产品库，请稍候...',
     background: 'rgba(0, 0, 0, 0.7)'
   });
+  let data: TenantProductSyncResult | undefined;
   try {
     const res = await syncAllTenantProductStatus();
-    const data = (res.data || {}) as TenantProductSyncResult;
-    proxy?.$modal.msgSuccess(
-      `同步完成：成功 ${data.successCount ?? 0} 条，跳过 ${data.skippedCount ?? 0} 条，失败 ${data.failCount ?? 0} 条，影响 ${data.tenantCount ?? 0} 个租户。`
-    );
+    data = (res.data || {}) as TenantProductSyncResult;
   } finally {
     loadingInstance.close();
     buttonLoading.value = false;
+  }
+  if (data) {
+    await showSyncResultDialog('同步全部上下架状态结果', data);
   }
 };
 

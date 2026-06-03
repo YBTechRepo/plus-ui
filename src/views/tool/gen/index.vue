@@ -101,7 +101,7 @@
           :label="key.substring(key.lastIndexOf('/') + 1, key.indexOf('.vm'))"
           :name="key.substring(key.lastIndexOf('/') + 1, key.indexOf('.vm'))"
         >
-          <el-link v-copyText="value" v-copyText:callback="copyTextSuccess" :underline="false" icon="DocumentCopy" style="float: right">
+          <el-link v-copyText="value" v-copyText:callback="copyTextSuccess" underline="never" icon="DocumentCopy" style="float: right">
             &nbsp;复制
           </el-link>
           <highlightjs :code="value" />
