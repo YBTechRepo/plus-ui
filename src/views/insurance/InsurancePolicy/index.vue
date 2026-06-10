@@ -170,14 +170,21 @@
         <el-table-column label="被保人手机号" align="center" prop="insuredMobile" />
         <el-table-column label="删除标识" align="center" prop="delFlag" />
         <el-table-column label="乐观锁版本" align="center" prop="version" /> -->
-        <el-table-column label="操作" align="center" fixed="right"  class-name="small-padding fixed-width">
+        <el-table-column label="操作" align="center" fixed="right" width="230" class-name="small-padding fixed-width">
           <template #default="scope">
-            <el-tooltip content="查看详情" placement="top">
-              <el-button link type="primary" icon="View" @click="handleView(scope.row)" v-hasPermi="['insurance:InsurancePolicy:query']"></el-button>
-            </el-tooltip>
-            <el-tooltip content="修改" placement="top">
-              <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['insurance:InsurancePolicy:edit']"></el-button>
-            </el-tooltip>
+            <div class="policy-action-buttons">
+              <el-button link type="primary" icon="View" @click="handleView(scope.row)" v-hasPermi="['insurance:InsurancePolicy:query']">查看</el-button>
+              <el-button
+                link
+                type="primary"
+                icon="Download"
+                :loading="voucherDownloadingPolicyNo === scope.row.policyNo"
+                @click="handleDownloadVoucher(scope.row)"
+                v-hasPermi="['insurance:InsurancePolicy:query']"
+                >凭证下载</el-button
+              >
+              <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['insurance:InsurancePolicy:edit']">修改</el-button>
+            </div>
             <!-- <el-tooltip content="删除" placement="top">
               <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['insurance:InsurancePolicy:remove']"></el-button>
             </el-tooltip> -->
@@ -366,8 +373,10 @@
 </template>
 
 <script setup name="InsurancePolicy" lang="ts">
-import { listInsurancePolicy, getInsurancePolicy, delInsurancePolicy, addInsurancePolicy, updateInsurancePolicy } from '@/api/insurance/InsurancePolicy';
+import { listInsurancePolicy, getInsurancePolicy, delInsurancePolicy, addInsurancePolicy, updateInsurancePolicy, downloadPolicyVoucherPdf } from '@/api/insurance/InsurancePolicy';
 import { InsurancePolicyVO, InsurancePolicyQuery, InsurancePolicyForm } from '@/api/insurance/InsurancePolicy/types';
+import { blobValidate } from '@/utils/ruoyi';
+import FileSaver from 'file-saver';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
@@ -393,6 +402,7 @@ const ids = ref<Array<string | number>>([]);
 const single = ref(true);
 const multiple = ref(true);
 const total = ref(0);
+const voucherDownloadingPolicyNo = ref('');
 
 const queryFormRef = ref<ElFormInstance>();
 const InsurancePolicyFormRef = ref<ElFormInstance>();
@@ -621,6 +631,38 @@ const handleDelete = async (row?: InsurancePolicyVO) => {
   await getList();
 }
 
+const buildVoucherPdfFileName = (row: InsurancePolicyVO) => {
+  const productName = String(row.productName || '投保凭证').replace(/[\\/:*?"<>|]/g, '');
+  const policyNoSuffix = row.policyNo ? `_${row.policyNo}` : '';
+  return `${productName}-投保凭证${policyNoSuffix}.pdf`;
+};
+
+const handleDownloadVoucher = async (row: InsurancePolicyVO) => {
+  if (!row.policyNo) {
+    proxy?.$modal.msgError('缺少保单号，无法下载凭证');
+    return;
+  }
+
+  voucherDownloadingPolicyNo.value = row.policyNo;
+  try {
+    const resp = await downloadPolicyVoucherPdf(row.policyNo);
+    if (blobValidate(resp)) {
+      FileSaver.saveAs(new Blob([resp], { type: 'application/pdf' }), buildVoucherPdfFileName(row));
+      proxy?.$modal.msgSuccess('凭证下载成功');
+      return;
+    }
+
+    const resText = await new Blob([resp]).text();
+    const rspObj = JSON.parse(resText);
+    proxy?.$modal.msgError(rspObj.msg || '凭证下载失败');
+  } catch (error) {
+    console.error(error);
+    proxy?.$modal.msgError('凭证下载失败');
+  } finally {
+    voucherDownloadingPolicyNo.value = '';
+  }
+};
+
 /** 导出按钮操作 */
 const handleExport = () => {
   proxy?.download('insurance/InsurancePolicy/export', {
@@ -632,3 +674,17 @@ onMounted(() => {
   getList();
 });
 </script>
+
+<style scoped>
+.policy-action-buttons {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.policy-action-buttons :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+</style>

@@ -61,3 +61,16 @@ export const delInsurancePolicy = (id: string | number | Array<string | number>)
     method: 'delete'
   });
 };
+
+/**
+ * 下载保单投保凭证 PDF
+ * @param policyNo 保单号
+ */
+export const downloadPolicyVoucherPdf = (policyNo: string | number) => {
+  return request({
+    url: '/insurance/InsurancePolicy/voucherPdf/' + encodeURIComponent(policyNo),
+    method: 'get',
+    responseType: 'blob',
+    headers: { repeatSubmit: false }
+  });
+};

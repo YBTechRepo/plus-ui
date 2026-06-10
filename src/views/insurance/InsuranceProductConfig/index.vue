@@ -282,7 +282,7 @@
             </el-row>
           </el-tab-pane>
 
-          <el-tab-pane label="投保扩展字段" name="insureForm" v-if="!isCardSecretProduct">
+          <el-tab-pane label="投保扩展字段" name="insureForm" v-if="!isRegularProduct && !isCardSecretProduct">
             <el-alert title="用于配置投保页除常规信息之外的产品扩展字段，例如家财险的房屋地址、建筑面积、房屋用途等。" type="info" show-icon class="mb-4" />
             <el-button type="primary" plain icon="Plus" @click="addInsureFormField" class="mb-2">新增字段</el-button>
             <el-table :data="insureFormFields" border size="small">
@@ -390,7 +390,7 @@
             </el-table>
           </el-tab-pane>
 
-          <el-tab-pane label="保障责任" name="liability" v-if="!isRegularProduct && !isCardSecretProduct">
+          <el-tab-pane label="保障责任" name="liability" v-if="!isCardSecretProduct">
             <el-button type="primary" plain icon="Plus" @click="addLiability" class="mb-2">新增保障责任</el-button>
             <el-table :data="form.liabilityList" border size="small">
               <el-table-column label="排序" width="90">
@@ -413,7 +413,7 @@
             </el-table>
           </el-tab-pane>
 
-          <el-tab-pane label="规则与条款" name="rules" v-if="!isRegularProduct && !isCardSecretProduct">
+          <el-tab-pane label="规则与条款" name="rules" v-if="!isCardSecretProduct">
             <el-divider content-position="left">投保须知</el-divider>
             <el-button type="success" plain icon="Plus" @click="addNotice" class="mb-2">新增投保须知</el-button>
             <el-table :data="form.insureNotice" border size="small" class="mb-4">
@@ -455,7 +455,7 @@
             </el-table>
           </el-tab-pane>
 
-          <el-tab-pane label="展示物料" name="images" v-if="!isRegularProduct">
+          <el-tab-pane label="展示物料" name="images" v-if="!isCardSecretProduct">
             <el-alert :title="isCardSecretProduct ? '卡密产品仅展示头图和产品详情图，详情图将存入产品特点图字段' : '图片将以 JSON 数组格式安全存入数据库附属表中'" type="info" show-icon class="mb-4" />
             <el-form-item :label="isCardSecretProduct ? '产品详情图' : '产品特点图'">
               <image-upload v-model="featureImagesStr" :limit="5" />
@@ -867,11 +867,11 @@ watch([() => form.value.product.productMode, () => form.value.product.insureMode
   }
 });
 
-// 如果切换成了常规产品，强制切回“基础信息”页签
+// 常规产品和卡密产品不展示投保扩展字段，切换时回到可编辑页签
 watch([isRegularProduct, isCardSecretProduct], ([regular, cardSecret]) => {
   const insuranceTabs = ['liability', 'rules'];
   const cardHiddenTabs = ['marketing', 'serviceFee', 'insureForm'];
-  if (regular && activeTab.value !== 'basic') {
+  if (regular && activeTab.value === 'insureForm') {
     activeTab.value = 'basic';
     return;
   }
