@@ -202,7 +202,7 @@ import {
 } from '@/api/insurance/InsuranceProductCommission/types';
 import { listInsuranceTenantProduct } from '@/api/insurance/InsuranceTenantProduct';
 import { getServiceFeeConfig } from '@/api/insurance/InsuranceProductConfig';
-import type { InsuranceTenantProductVO } from '@/api/insurance/InsuranceTenantProduct/types';
+import type { InsuranceTenantProductQuery, InsuranceTenantProductVO } from '@/api/insurance/InsuranceTenantProduct/types';
 import { ElLoading } from 'element-plus';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
@@ -224,9 +224,27 @@ const dialog = reactive<DialogOption>({ visible: false, title: '' });
 
 /** 产品下拉 */
 const productOptions = ref<InsuranceTenantProductVO[]>([]);
+const loadAllTenantProducts = async (query: InsuranceTenantProductQuery = {}) => {
+  const pageSize = 500;
+  const rows: InsuranceTenantProductVO[] = [];
+  const firstPage = await listInsuranceTenantProduct({ ...query, pageNum: 1, pageSize });
+  rows.push(...(firstPage.rows ?? []));
+  const allTotal = Number(firstPage.total ?? rows.length);
+
+  for (let pageNum = 2; rows.length < allTotal; pageNum += 1) {
+    const res = await listInsuranceTenantProduct({ ...query, pageNum, pageSize });
+    const pageRows = res.rows ?? [];
+    if (pageRows.length === 0) {
+      break;
+    }
+    rows.push(...pageRows);
+  }
+
+  return rows;
+};
+
 const loadProductOptions = async () => {
-  const res = await listInsuranceTenantProduct({ status: 0, pageNum: 1, pageSize: 500 });
-  productOptions.value = res.rows ?? [];
+  productOptions.value = await loadAllTenantProducts({ status: '0' });
 };
 
 /** 弹窗顶层字段 */
@@ -447,8 +465,7 @@ const handleSync = async () => {
 
     try {
       // 1. 获取所有产品
-      const productRes = await listInsuranceTenantProduct({ pageNum: 1, pageSize: 1000 });
-      const products = productRes.rows || [];
+      const products = await loadAllTenantProducts();
       if (products.length === 0) {
         proxy?.$modal.msgWarning('没有可同步的产品');
         loadingInstance.close();

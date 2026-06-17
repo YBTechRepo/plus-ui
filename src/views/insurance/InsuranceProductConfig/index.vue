@@ -15,15 +15,15 @@
                 <el-option v-for="dict in insurance_company" :key="dict.value" :label="dict.label" :value="dict.value"/>
               </el-select>
             </el-form-item>
-            <el-form-item label="产品类型" prop="productType">
+            <el-form-item label="产品分类" prop="categoryId">
               <el-tree-select
-                v-model="queryParams.productType"
+                v-model="queryParams.categoryId"
                 :data="categoryOptions"
                 :props="{ value: 'categoryId', label: 'categoryName', children: 'children' }"
                 value-key="categoryId"
                 check-strictly
                 clearable
-                placeholder="请选择产品类型"
+                placeholder="请选择产品分类"
               />
             </el-form-item>
             <el-form-item>
@@ -787,7 +787,7 @@ const data = reactive<any>({
   form: JSON.parse(JSON.stringify(initFormData)),
   queryParams: {
     pageNum: 1, pageSize: 10,
-    productCode: undefined, productName: undefined, companyCode: undefined, productType: undefined
+    productCode: undefined, productName: undefined, companyCode: undefined, productType: undefined, categoryId: undefined
   },
   // 🌟 嵌套校验规则
   rules: {

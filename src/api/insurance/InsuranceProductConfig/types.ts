@@ -167,6 +167,11 @@ export interface InsuranceProductConfigForm extends BaseEntity {
   productType?: string;
 
   /**
+   * 产品分类ID
+   */
+  categoryId?: string | number;
+
+  /**
    * 产品模式
    */
   productMode?: number;
@@ -278,6 +283,11 @@ export interface InsuranceProductConfigQuery extends PageQuery {
    * 产品类型
    */
   productType?: string;
+
+  /**
+   * 产品分类ID
+   */
+  categoryId?: string | number;
 
   /**
    * 产品模式

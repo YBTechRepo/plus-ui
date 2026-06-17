@@ -217,7 +217,7 @@
 import { listCommissionProduct, getCommissionProduct, delCommissionProduct, addCommissionProduct, updateCommissionProduct } from '@/api/commission/CommissionProduct';
 import { CommissionProductVO, CommissionProductQuery, CommissionProductForm } from '@/api/commission/CommissionProduct/types';
 import { listInsuranceTenantProduct } from '@/api/insurance/InsuranceTenantProduct';
-import type { InsuranceTenantProductVO } from '@/api/insurance/InsuranceTenantProduct/types';
+import type { InsuranceTenantProductQuery, InsuranceTenantProductVO } from '@/api/insurance/InsuranceTenantProduct/types';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const { insurance_product_commission_status, commission_calc_strategy } = toRefs<any>(proxy?.useDict('insurance_product_commission_status', 'commission_calc_strategy'));
@@ -263,10 +263,28 @@ const salesRatioDisplay = ref<number>(0);
 /** 产品下拉选项 */
 const productOptions = ref<InsuranceTenantProductVO[]>([]);
 
+const loadAllTenantProducts = async (query: InsuranceTenantProductQuery = {}) => {
+  const pageSize = 500;
+  const rows: InsuranceTenantProductVO[] = [];
+  const firstPage = await listInsuranceTenantProduct({ ...query, pageNum: 1, pageSize });
+  rows.push(...(firstPage.rows ?? []));
+  const allTotal = Number(firstPage.total ?? rows.length);
+
+  for (let pageNum = 2; rows.length < allTotal; pageNum += 1) {
+    const res = await listInsuranceTenantProduct({ ...query, pageNum, pageSize });
+    const pageRows = res.rows ?? [];
+    if (pageRows.length === 0) {
+      break;
+    }
+    rows.push(...pageRows);
+  }
+
+  return rows;
+};
+
 /** 异步加载上架中的租户产品列表 */
 const loadProductOptions = async () => {
-  const res = await listInsuranceTenantProduct({ status: 0, pageNum: 1, pageSize: 500 });
-  productOptions.value = res.rows ?? [];
+  productOptions.value = await loadAllTenantProducts({ status: '0' });
 };
 
 /** 选中产品后自动填充 productId 和 productCode */

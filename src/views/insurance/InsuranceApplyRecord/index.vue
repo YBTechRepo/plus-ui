@@ -865,8 +865,22 @@ const handleExport = () => {
 };
 
 const getProductOptions = async () => {
-  const res = await listInsuranceProductConfig({ pageNum: 1, pageSize: 9999 } as any);
-  productOptions.value = res.rows || [];
+  const pageSize = 500;
+  const rows: any[] = [];
+  const firstPage = await listInsuranceProductConfig({ pageNum: 1, pageSize } as any);
+  rows.push(...(firstPage.rows || []));
+  const allTotal = Number(firstPage.total ?? rows.length);
+
+  for (let pageNum = 2; rows.length < allTotal; pageNum += 1) {
+    const res = await listInsuranceProductConfig({ pageNum, pageSize } as any);
+    const pageRows = res.rows || [];
+    if (pageRows.length === 0) {
+      break;
+    }
+    rows.push(...pageRows);
+  }
+
+  productOptions.value = rows;
 };
 
 // ===================== 详情下钻逻辑 =====================

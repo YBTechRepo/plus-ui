@@ -162,7 +162,7 @@
 import { listNotice, getNotice, delNotice, addNotice, updateNotice } from '@/api/system/notice';
 import { NoticeForm, NoticeQuery, NoticeVO } from '@/api/system/notice/types';
 import { listClient } from '@/api/system/client';
-import { ClientVO } from '@/api/system/client/types';
+import { ClientQuery, ClientVO } from '@/api/system/client/types';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const { sys_notice_status, sys_notice_type } = toRefs<any>(proxy?.useDict('sys_notice_status', 'sys_notice_type'));
@@ -227,9 +227,27 @@ const getList = async () => {
   loading.value = false;
 };
 
+const loadAllClients = async (query: ClientQuery = {}) => {
+  const pageSize = 500;
+  const rows: ClientVO[] = [];
+  const firstPage = await listClient({ ...query, pageNum: 1, pageSize });
+  rows.push(...(firstPage.rows ?? []));
+  const allTotal = Number(firstPage.total ?? rows.length);
+
+  for (let pageNum = 2; rows.length < allTotal; pageNum += 1) {
+    const res = await listClient({ ...query, pageNum, pageSize });
+    const pageRows = res.rows ?? [];
+    if (pageRows.length === 0) {
+      break;
+    }
+    rows.push(...pageRows);
+  }
+
+  return rows;
+};
+
 const getClientOptions = async () => {
-  const res = await listClient({ pageNum: 1, pageSize: 999, status: '0' });
-  clientOptions.value = res.rows;
+  clientOptions.value = await loadAllClients({ status: '0' });
 };
 
 const formatClientLabel = (client: ClientVO) => {

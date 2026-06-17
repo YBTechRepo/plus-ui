@@ -115,7 +115,7 @@
                   </el-button-group>
                 </div>
               </el-col>
-              <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
+              <right-toolbar v-model:showSearch="showSearch" @queryTable="reloadList"></right-toolbar>
             </el-row>
           </template>
 
@@ -411,6 +411,7 @@ const { insurance_product_type, insurance_product_mode, insurance_company, insur
 );
 
 const InsuranceTenantProductList = ref<InsuranceTenantProductVO[]>([]);
+const allTenantProductList = ref<InsuranceTenantProductVO[]>([]);
 
 /** 解析服务费配置 JSON（用于产品选择弹窗展示） */
 const parseServiceFeeConfig = (raw: any): any[] => {
@@ -682,7 +683,7 @@ const visibleFilterTags = computed<FilterTag[]>(() => {
   if (categoryTags.length > 0) {
     return categoryTags.map((tag) => ({ label: tag, value: tag, type: 'marketingTag' }));
   }
-  return collectMarketingTagsFromProducts(InsuranceTenantProductList.value).map((tag) => ({ label: tag, value: tag, type: 'marketingTag' }));
+  return collectMarketingTagsFromProducts(getRowsByCategory(activeCategoryId.value)).map((tag) => ({ label: tag, value: tag, type: 'marketingTag' }));
 });
 
 const isAllFilterTagActive = computed(() => activeMarketingTag.value === '' && activeFilterCategoryId.value === undefined);
@@ -741,6 +742,12 @@ const rowHasMarketingTag = (row: InsuranceTenantProductVO, tag: string) => {
   return parseMarketingTags(row.marketingTags).includes(tag);
 };
 
+const getRowsByCategory = (categoryId: string | number | undefined) => {
+  const categoryIds = categoryId !== undefined ? getCategoryAndChildrenIds(categoryId) : [];
+  if (categoryIds.length === 0) return allTenantProductList.value;
+  return allTenantProductList.value.filter((item) => categoryIds.includes(String(item.categoryId)));
+};
+
 const toSortNumber = (value: unknown) => {
   const num = Number(value ?? 0);
   return Number.isFinite(num) ? num : 0;
@@ -753,17 +760,43 @@ const sortRows = (rows: InsuranceTenantProductVO[]) => {
   return [...rows].sort((a, b) => (toSortNumber(a[field]) - toSortNumber(b[field])) * direction);
 };
 
-const getLocalProcessedList = async () => {
-  const res = await listInsuranceTenantProduct({
+const getCurrentCategoryId = () => activeFilterCategoryId.value ?? activeCategoryId.value;
+
+const buildListQuery = (pageNum = queryParams.value.pageNum, pageSize = queryParams.value.pageSize): InsuranceTenantProductQuery => {
+  const params = { ...queryParams.value.params };
+  delete params.marketingTag;
+  return {
     ...queryParams.value,
-    pageNum: 1,
-    pageSize: 10000,
+    params,
+    pageNum,
+    pageSize,
     categoryId: undefined
-  });
-  const categoryFilterId = activeCategoryId.value ?? activeFilterCategoryId.value;
+  };
+};
+
+const loadAllTenantProducts = async () => {
+  const pageSize = 500;
+  const firstPage = await listInsuranceTenantProduct(buildListQuery(1, pageSize));
+  const rows = (firstPage.rows ?? []).map(normalizeTenantProduct);
+  const allTotal = Number(firstPage.total ?? rows.length);
+
+  for (let pageNum = 2; rows.length < allTotal; pageNum += 1) {
+    const res = await listInsuranceTenantProduct(buildListQuery(pageNum, pageSize));
+    const pageRows = (res.rows ?? []).map(normalizeTenantProduct);
+    if (pageRows.length === 0) {
+      break;
+    }
+    rows.push(...pageRows);
+  }
+
+  allTenantProductList.value = rows;
+};
+
+const applyLocalProcessedList = () => {
+  const categoryFilterId = getCurrentCategoryId();
   const categoryIds = categoryFilterId !== undefined ? getCategoryAndChildrenIds(categoryFilterId) : [];
   const marketingTag = activeMarketingTag.value;
-  let rows = (res.rows ?? []).map(normalizeTenantProduct);
+  let rows = [...allTenantProductList.value];
 
   if (categoryIds.length > 0) {
     rows = rows.filter((item) => categoryIds.includes(String(item.categoryId)));
@@ -772,29 +805,40 @@ const getLocalProcessedList = async () => {
     rows = rows.filter((item) => rowHasMarketingTag(item, marketingTag));
   }
 
-  rows = sortRows(rows);
-  total.value = rows.length;
+  const sortedRows = sortRows(rows);
+  total.value = sortedRows.length;
   const start = (Number(queryParams.value.pageNum) - 1) * Number(queryParams.value.pageSize);
-  InsuranceTenantProductList.value = rows.slice(start, start + Number(queryParams.value.pageSize));
+  InsuranceTenantProductList.value = sortedRows.slice(start, start + Number(queryParams.value.pageSize));
+};
+
+const getLocalProcessedList = async () => {
+  if (allTenantProductList.value.length === 0) {
+    await loadAllTenantProducts();
+  }
+  applyLocalProcessedList();
 };
 
 /** 查询产品库列表 */
 const getList = async () => {
   loading.value = true;
   try {
-    if (activeCategoryId.value !== undefined || activeFilterCategoryId.value !== undefined || activeSortField.value) {
-      await getLocalProcessedList();
-      return;
-    }
-    const res = await listInsuranceTenantProduct(queryParams.value);
-    InsuranceTenantProductList.value = (res.rows ?? []).map(normalizeTenantProduct);
-    total.value = res.total;
+    await getLocalProcessedList();
   } finally {
     loading.value = false;
   }
 };
 
-/** 分类筛选兜底：历史租户产品可能未同步 categoryId，使用缝合后的 VO 分类字段过滤 */
+const reloadList = async () => {
+  loading.value = true;
+  try {
+    await loadAllTenantProducts();
+    applyLocalProcessedList();
+  } finally {
+    loading.value = false;
+  }
+};
+
+/** 分类筛选兜底：前端排序字段来自缝合后的 VO，需要拉取当前筛选结果后排序 */
 const getCategoryProductList = async () => {
   await getLocalProcessedList();
 };
@@ -814,7 +858,7 @@ const reset = () => {
 /** 搜索按钮操作 */
 const handleQuery = () => {
   queryParams.value.pageNum = 1;
-  getList();
+  reloadList();
 };
 
 const clearMarketingTag = () => {
@@ -893,7 +937,7 @@ const handleAllCategory = () => {
 /** 分类树节点点击 */
 const handleCategoryNodeClick = (data: any) => {
   activeCategoryId.value = data.categoryId;
-  queryParams.value.categoryId = undefined;
+  queryParams.value.categoryId = data.categoryId;
   queryParams.value.pageNum = 1;
   clearFilterTags();
   getList();
@@ -924,7 +968,7 @@ const submitBatchAdd = async () => {
     await addInsuranceTenantProductBatch(selectedProductIds.value);
     proxy?.$modal.msgSuccess('批量添加成功');
     productSelectDialog.visible = false;
-    await getList();
+    await reloadList();
   } finally {
     buttonLoading.value = false;
   }
@@ -952,7 +996,7 @@ const submitForm = () => {
       }
       proxy?.$modal.msgSuccess('操作成功');
       dialog.visible = false;
-      await getList();
+      await reloadList();
     }
   });
 };
@@ -986,7 +1030,7 @@ const handleDelete = async (row?: InsuranceTenantProductVO) => {
   await proxy?.$modal.confirm('是否确认删除产品库编号为"' + _ids + '"的数据项？').finally(() => (loading.value = false));
   await delInsuranceTenantProduct(_ids);
   proxy?.$modal.msgSuccess('删除成功');
-  await getList();
+  await reloadList();
 };
 
 /** 导出按钮操作 */
