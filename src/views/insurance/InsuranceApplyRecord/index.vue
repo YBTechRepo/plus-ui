@@ -71,6 +71,11 @@
         <el-table-column label="客户姓名" align="center" prop="customerName" width="120" />
         <el-table-column label="客户手机号" align="center" prop="customerMobile" width="120" />
         <el-table-column label="登记保费" align="center" prop="premium" width="120" />
+        <el-table-column label="起保日期" align="center" prop="policyStartDate" width="120">
+          <template #default="scope">
+            <span>{{ displayDate(scope.row.policyStartDate) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="订单状态" align="center" prop="status" width="120">
           <template #default="scope">
             <el-tag :type="getApplyStatusTagType(scope.row.status)">{{ getApplyStatusLabel(scope.row.status) }}</el-tag>
@@ -149,6 +154,11 @@
             </el-table-column>
             <el-table-column label="投保人" align="center" prop="appName" width="200" />
             <el-table-column label="被保人" align="center" prop="insuredName" width="200" />
+            <el-table-column label="起保日期" align="center" prop="policyStartDate" width="160">
+              <template #default="scope">
+                <span>{{ displayDate(scope.row.policyStartDate) }}</span>
+              </template>
+            </el-table-column>
             <el-table-column label="子单状态" align="center" prop="status" width="200">
               <template #default="scope">
                 <el-tag :type="getApplyStatusTagType(scope.row.status)">{{ getApplyStatusLabel(scope.row.status) }}</el-tag>
@@ -193,6 +203,7 @@
           <el-divider />
           <el-descriptions title="订单其它信息" :column="2" border>
             <el-descriptions-item label="订单号">{{ detailDrawer.personDetail.orderNo }}</el-descriptions-item>
+            <el-descriptions-item label="起保日期">{{ displayDate(detailDrawer.personDetail.policyStartDate) }}</el-descriptions-item>
           </el-descriptions>
           <template v-if="detailExtraItems.length > 0">
             <el-divider />
@@ -230,6 +241,11 @@
             <el-table-column label="子单号" align="center" prop="orderNo" min-width="260" show-overflow-tooltip />
             <el-table-column label="投保人" align="center" prop="appName" min-width="140" />
             <el-table-column label="被保人" align="center" prop="insuredName" min-width="140" />
+            <el-table-column label="起保日期" align="center" prop="policyStartDate" min-width="120">
+              <template #default="scope">
+                <span>{{ displayDate(scope.row.policyStartDate) }}</span>
+              </template>
+            </el-table-column>
             <el-table-column label="子单状态" align="center" prop="status" min-width="120">
               <template #default="scope">
                 <el-tag :type="getApplyStatusTagType(scope.row.status)">{{ getApplyStatusLabel(scope.row.status) }}</el-tag>
@@ -266,6 +282,12 @@
                   <td class="value">{{ displayValue(voucherDialog.orderInfo.orderNo) }}</td>
                   <td class="label">下单时间</td>
                   <td class="value">{{ displayTime(voucherDialog.orderInfo.createTime) }}</td>
+                </tr>
+                <tr>
+                  <td class="label">起保日期</td>
+                  <td class="value">{{ displayDate(voucherDialog.orderInfo.policyStartDate) }}</td>
+                  <td class="label">保单保费</td>
+                  <td class="value">{{ displayAmount(voucherDialog.orderInfo.premium) }}</td>
                 </tr>
                 <tr>
                   <td class="label">登记客户</td>
@@ -436,13 +458,14 @@
 <script setup name="InsuranceApplyRecord" lang="ts">
 import {
   listInsuranceApplyRecord,
+  listInsuranceApplyRecordProductOptions,
   getInsuranceApplyRecord,
   confirmPay,
   cancelInsuranceApplyRecord,
   delInsuranceApplyRecord
 } from '@/api/insurance/InsuranceApplyRecord';
 import { InsuranceApplyRecordVO, InsuranceApplyRecordQuery, InsuranceApplyRecordForm } from '@/api/insurance/InsuranceApplyRecord/types';
-import { getProductFull, listInsuranceProductConfig } from '@/api/insurance/InsuranceProductConfig';
+import { getProductFull } from '@/api/insurance/InsuranceProductConfig';
 import type { InsuranceDynamicField } from '@/api/insurance/dynamicForm/types';
 import { useUserStore } from '@/store/modules/user';
 import request from '@/utils/request';
@@ -600,6 +623,10 @@ const displayAmount = (value: unknown) => {
 
 const displayTime = (value: string) => {
   return value ? parseTime(value, '{y}-{m}-{d} {h}:{i}:{s}') : '--';
+};
+
+const displayDate = (value: string) => {
+  return value ? parseTime(value, '{y}-{m}-{d}') : '--';
 };
 
 const getDictLabel = (options: DictDataOption[] = [], value: unknown) => {
@@ -865,22 +892,8 @@ const handleExport = () => {
 };
 
 const getProductOptions = async () => {
-  const pageSize = 500;
-  const rows: any[] = [];
-  const firstPage = await listInsuranceProductConfig({ pageNum: 1, pageSize } as any);
-  rows.push(...(firstPage.rows || []));
-  const allTotal = Number(firstPage.total ?? rows.length);
-
-  for (let pageNum = 2; rows.length < allTotal; pageNum += 1) {
-    const res = await listInsuranceProductConfig({ pageNum, pageSize } as any);
-    const pageRows = res.rows || [];
-    if (pageRows.length === 0) {
-      break;
-    }
-    rows.push(...pageRows);
-  }
-
-  productOptions.value = rows;
+  const res = await listInsuranceApplyRecordProductOptions();
+  productOptions.value = res.data || [];
 };
 
 // ===================== 详情下钻逻辑 =====================

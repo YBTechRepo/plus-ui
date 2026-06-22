@@ -17,6 +17,16 @@ export const listInsuranceApplyRecord = (query?: InsuranceApplyRecordQuery): Axi
 };
 
 /**
+ * 查询投保记录产品选项
+ */
+export const listInsuranceApplyRecordProductOptions = () => {
+  return request({
+    url: '/insurance/InsuranceApplyRecord/productOptions',
+    method: 'get'
+  });
+};
+
+/**
  * 查询投保记录详细
  * @param id
  */

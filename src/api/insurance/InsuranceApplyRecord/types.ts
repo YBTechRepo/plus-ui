@@ -150,6 +150,11 @@ export interface InsuranceApplyRecordVO {
   insureExtraData?: string;
 
   /**
+   * 起保日期
+   */
+  policyStartDate?: string;
+
+  /**
    * 是否批量单：0-普通单 1-批次主单 2-批量子单
    */
   isBatch: number;
@@ -311,6 +316,11 @@ export interface InsuranceApplyRecordForm extends BaseEntity {
    * 投保扩展字段值
    */
   insureExtraData?: string;
+
+  /**
+   * 起保日期
+   */
+  policyStartDate?: string;
 
   /**
    * 是否批量单：0-普通单 1-批次主单 2-批量子单

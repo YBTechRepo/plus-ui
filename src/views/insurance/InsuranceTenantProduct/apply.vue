@@ -33,7 +33,16 @@
             </el-col>
             <el-col :xs="24" :md="12">
               <el-form-item label="所在地区" prop="receiverArea">
-                <el-input v-model="cardForm.receiverArea" placeholder="请输入省市区" />
+                <el-cascader
+                  :model-value="getAreaPath(cardForm.receiverArea)"
+                  :options="areaOptions"
+                  :props="areaCascaderProps"
+                  placeholder="请选择省市区"
+                  clearable
+                  filterable
+                  class="w-full"
+                  @change="(value) => onAreaChange('receiver', value)"
+                />
               </el-form-item>
             </el-col>
             <el-col :xs="24" :md="12">
@@ -53,6 +62,24 @@
       </el-form>
 
       <el-form v-else ref="applyFormRef" :model="form" :rules="rules" label-width="120px">
+        <el-card shadow="never" class="form-section">
+          <template #header><span class="section-title">投保信息</span></template>
+          <el-row :gutter="16">
+            <el-col :xs="24" :md="12">
+              <el-form-item label="起保日期" prop="policyStartDate">
+                <el-date-picker
+                  v-model="form.policyStartDate"
+                  type="date"
+                  value-format="YYYY-MM-DD"
+                  placeholder="请选择起保日期"
+                  :disabled-date="disableBeforeTomorrow"
+                  class="w-full"
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </el-card>
+
         <el-card shadow="never" class="form-section">
           <template #header><span class="section-title">投保人信息</span></template>
           <el-row :gutter="16">
@@ -92,13 +119,32 @@
               </el-col>
               <el-col :xs="24" :md="12">
                 <el-form-item label="证件到期日" prop="applicantCertEndDate">
-                  <el-date-picker v-model="form.applicantCertEndDate" type="date" value-format="YYYY-MM-DD" placeholder="请选择日期" class="w-full" />
+                  <div class="end-date-field">
+                    <el-input :model-value="formatEndDate(form.applicantCertEndDate)" readonly placeholder="请选择到期日" />
+                    <el-dropdown trigger="click" @command="(command) => handleEndDateCommand('applicant', command)">
+                      <el-button type="primary" plain>选择</el-button>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item v-for="item in endDateOptions" :key="item.value" :command="item.value">{{ item.label }}</el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
+                  </div>
                 </el-form-item>
               </el-col>
             </template>
             <el-col :xs="24" :md="12">
               <el-form-item label="所在地区" prop="applicantArea">
-                <el-input v-model="form.applicantArea" placeholder="请输入省市区" />
+                <el-cascader
+                  :model-value="getAreaPath(form.applicantArea)"
+                  :options="areaOptions"
+                  :props="areaCascaderProps"
+                  placeholder="请选择省市区"
+                  clearable
+                  filterable
+                  class="w-full"
+                  @change="(value) => onAreaChange('applicant', value)"
+                />
               </el-form-item>
             </el-col>
             <el-col :xs="24" :md="12">
@@ -169,19 +215,32 @@
                   </el-col>
                   <el-col :xs="24" :md="12">
                     <el-form-item label="证件到期日" :prop="`insuredList.${index}.insuredCertEndDate`" :rules="rules.insuredCertEndDate">
-                      <el-date-picker
-                        v-model="insured.insuredCertEndDate"
-                        type="date"
-                        value-format="YYYY-MM-DD"
-                        placeholder="请选择日期"
-                        class="w-full"
-                      />
+                      <div class="end-date-field">
+                        <el-input :model-value="formatEndDate(insured.insuredCertEndDate)" readonly placeholder="请选择到期日" />
+                        <el-dropdown trigger="click" @command="(command) => handleEndDateCommand('insured', command, index)">
+                          <el-button type="primary" plain>选择</el-button>
+                          <template #dropdown>
+                            <el-dropdown-menu>
+                              <el-dropdown-item v-for="item in endDateOptions" :key="item.value" :command="item.value">{{ item.label }}</el-dropdown-item>
+                            </el-dropdown-menu>
+                          </template>
+                        </el-dropdown>
+                      </div>
                     </el-form-item>
                   </el-col>
                 </template>
                 <el-col :xs="24" :md="12">
                   <el-form-item label="所在地区" :prop="`insuredList.${index}.insuredArea`" :rules="rules.insuredArea">
-                    <el-input v-model="insured.insuredArea" placeholder="请输入省市区" />
+                    <el-cascader
+                      :model-value="getAreaPath(insured.insuredArea)"
+                      :options="areaOptions"
+                      :props="areaCascaderProps"
+                      placeholder="请选择省市区"
+                      clearable
+                      filterable
+                      class="w-full"
+                      @change="(value) => onAreaChange('insured', value, index)"
+                    />
                   </el-form-item>
                 </el-col>
                 <el-col :xs="24" :md="12">
@@ -201,6 +260,14 @@
         </el-card>
       </el-form>
     </el-card>
+
+    <el-dialog v-model="customEndDateVisible" title="选择证件到期日" width="360px" append-to-body>
+      <el-date-picker v-model="customEndDateValue" type="date" value-format="YYYY-MM-DD" placeholder="请选择日期" class="w-full" />
+      <template #footer>
+        <el-button @click="customEndDateVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmCustomEndDate">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -210,6 +277,16 @@ import { getInsuranceCardOrderByOrderNo, saveCardOrderInfo } from '@/api/insuran
 import { getProductFull } from '@/api/insurance/InsuranceProductConfig';
 import DynamicInsuranceForm from '@/views/insurance/components/DynamicInsuranceForm.vue';
 import type { InsuranceDynamicField } from '@/api/insurance/dynamicForm/types';
+import { areaList } from '@vant/area-data';
+
+interface AreaOption {
+  label: string;
+  value: string;
+  children?: AreaOption[];
+}
+
+type AreaTarget = 'receiver' | 'applicant' | 'insured';
+type EndDateTarget = 'applicant' | 'insured';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const router = useRouter();
@@ -241,6 +318,73 @@ const relationOptions = [
   { label: '子女', value: '3' },
   { label: '其他', value: '4' }
 ];
+const endDateOptions = [
+  { label: '5年', value: '5' },
+  { label: '10年', value: '10' },
+  { label: '20年', value: '20' },
+  { label: '长期', value: 'long' },
+  { label: '自定义日期', value: 'custom' }
+];
+
+const formatDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getTomorrow = () => {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  return date;
+};
+
+const getTomorrowDate = () => formatDate(getTomorrow());
+
+const disableBeforeTomorrow = (date: Date) => {
+  const tomorrow = getTomorrow();
+  tomorrow.setHours(0, 0, 0, 0);
+  return date.getTime() < tomorrow.getTime();
+};
+
+const areaCascaderProps = {
+  value: 'label',
+  label: 'label',
+  children: 'children',
+  emitPath: true
+};
+
+const areaOptions = computed<AreaOption[]>(() => {
+  const provinceList = areaList.province_list || {};
+  const cityList = areaList.city_list || {};
+  const countyList = areaList.county_list || {};
+
+  return Object.entries(provinceList).map(([provinceCode, provinceName]) => {
+    const provincePrefix = provinceCode.slice(0, 2);
+    const cities = Object.entries(cityList)
+      .filter(([cityCode]) => cityCode.startsWith(provincePrefix))
+      .map(([cityCode, cityName]) => {
+        const cityPrefix = cityCode.slice(0, 4);
+        const counties = Object.entries(countyList)
+          .filter(([countyCode]) => countyCode.startsWith(cityPrefix))
+          .map(([, countyName]) => ({
+            label: countyName,
+            value: countyName
+          }));
+        return {
+          label: cityName,
+          value: cityName,
+          children: counties
+        };
+      });
+
+    return {
+      label: provinceName,
+      value: provinceName,
+      children: cities
+    };
+  });
+});
 
 const initInsured = () => ({
   relation: '',
@@ -256,6 +400,7 @@ const initInsured = () => ({
 
 const form = reactive({
   orderNo: '',
+  policyStartDate: getTomorrowDate(),
   applicantName: '',
   applicantCertType: '0',
   applicantCertNo: '',
@@ -276,8 +421,13 @@ const cardForm = reactive({
   selectedCompanyCode: ''
 });
 
-const required = (message: string) => [{ required: true, message, trigger: 'blur' }];
+const customEndDateVisible = ref(false);
+const customEndDateValue = ref('');
+const customEndDateTarget = ref<{ target: EndDateTarget; index: number }>({ target: 'applicant', index: 0 });
+
+const required = (message: string, trigger = 'blur') => [{ required: true, message, trigger }];
 const rules: any = {
+  policyStartDate: [{ required: true, message: '请选择起保日期', trigger: 'change' }],
   applicantName: required('请输入投保人姓名'),
   applicantCertType: [{ required: true, message: '请选择证件类型', trigger: 'change' }],
   applicantCertNo: required('请输入证件号码'),
@@ -287,7 +437,7 @@ const rules: any = {
     { required: true, message: '请输入手机号码', trigger: 'blur' },
     { pattern: /^1[3-9]\d{9}$/, message: '手机号格式错误', trigger: 'blur' }
   ],
-  applicantArea: required('请输入所在地区'),
+  applicantArea: required('请选择所在地区', 'change'),
   applicantDetailAddress: required('请输入详细地址'),
   relation: [{ required: true, message: '请选择关系', trigger: 'change' }],
   insuredName: required('请输入被保人姓名'),
@@ -299,7 +449,7 @@ const rules: any = {
     { required: true, message: '请输入手机号码', trigger: 'blur' },
     { pattern: /^1[3-9]\d{9}$/, message: '手机号格式错误', trigger: 'blur' }
   ],
-  insuredArea: required('请输入所在地区'),
+  insuredArea: required('请选择所在地区', 'change'),
   insuredDetailAddress: required('请输入详细地址')
 };
 
@@ -309,9 +459,101 @@ const cardRules: any = {
     { required: true, message: '请输入收货人手机号', trigger: 'blur' },
     { pattern: /^1[3-9]\d{9}$/, message: '手机号格式错误', trigger: 'blur' }
   ],
-  receiverArea: required('请输入所在地区'),
+  receiverArea: required('请选择所在地区', 'change'),
   receiverDetailAddress: required('请输入详细地址'),
   selectedCompanyCode: [{ required: true, message: '请选择保险公司', trigger: 'change' }]
+};
+
+const getAreaPath = (value: unknown) => {
+  return String(value || '')
+    .split(' ')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+};
+
+const buildAreaText = (value: unknown) => {
+  return (Array.isArray(value) ? value : [])
+    .map((item) => String(item || '').trim())
+    .filter(Boolean)
+    .join(' ');
+};
+
+const onAreaChange = (target: AreaTarget, value: unknown, index = 0) => {
+  const areaText = buildAreaText(value);
+  if (target === 'receiver') {
+    cardForm.receiverArea = areaText;
+    return;
+  }
+  if (target === 'applicant') {
+    form.applicantArea = areaText;
+    return;
+  }
+  const insured = form.insuredList[index];
+  if (insured) {
+    insured.insuredArea = areaText;
+  }
+};
+
+const formatEndDate = (value: string) => {
+  return value === '9999-12-31' ? '长期' : value;
+};
+
+const getEndDateValue = (target: EndDateTarget, index = 0) => {
+  if (target === 'applicant') return form.applicantCertEndDate;
+  return form.insuredList[index]?.insuredCertEndDate || '';
+};
+
+const setEndDateValue = (target: EndDateTarget, value: string, index = 0) => {
+  if (target === 'applicant') {
+    form.applicantCertEndDate = value;
+    return;
+  }
+  const insured = form.insuredList[index];
+  if (insured) {
+    insured.insuredCertEndDate = value;
+  }
+};
+
+const getStartDateValue = (target: EndDateTarget, index = 0) => {
+  if (target === 'applicant') return form.applicantCertStartDate;
+  return form.insuredList[index]?.insuredCertStartDate || '';
+};
+
+const handleEndDateCommand = (target: EndDateTarget, command: string | number | object, index = 0) => {
+  const value = String(command);
+  if (value === 'custom') {
+    customEndDateTarget.value = { target, index };
+    customEndDateValue.value = getEndDateValue(target, index) === '9999-12-31' ? '' : getEndDateValue(target, index);
+    customEndDateVisible.value = true;
+    return;
+  }
+  if (value === 'long') {
+    setEndDateValue(target, '9999-12-31', index);
+    return;
+  }
+
+  const startDate = getStartDateValue(target, index);
+  if (!startDate) {
+    proxy?.$modal.msgWarning('请先选择证件生效期');
+    return;
+  }
+  const parts = startDate.split('-');
+  if (parts.length !== 3) {
+    proxy?.$modal.msgWarning('证件生效期格式错误');
+    return;
+  }
+  const years = Number(value);
+  setEndDateValue(target, `${Number(parts[0]) + years}-${parts[1]}-${parts[2]}`, index);
+};
+
+const confirmCustomEndDate = () => {
+  if (!customEndDateValue.value) {
+    proxy?.$modal.msgWarning('请选择证件到期日');
+    return;
+  }
+  setEndDateValue(customEndDateTarget.value.target, customEndDateValue.value, customEndDateTarget.value.index);
+  customEndDateVisible.value = false;
 };
 
 const fetchOrder = async () => {
@@ -329,6 +571,7 @@ const fetchOrder = async () => {
     return;
   }
   await loadDynamicFields(orderInfo.value.productId);
+  form.policyStartDate = orderInfo.value.policyStartDate?.slice?.(0, 10) || getTomorrowDate();
   cardForm.orderNo = form.orderNo;
   cardForm.receiverName = orderInfo.value.receiverName || orderInfo.value.customerName || '';
   cardForm.receiverMobile = orderInfo.value.receiverMobile || orderInfo.value.customerMobile || '';
@@ -419,6 +662,7 @@ const submitCardForm = () => {
 const buildDto = () => {
   const applicantAddr = `${form.applicantArea} ${form.applicantDetailAddress}`.trim();
   return {
+    policyStartDate: form.policyStartDate,
     applicantName: form.applicantName,
     applicantCertType: form.applicantCertType,
     applicantCertNo: form.applicantCertNo,
@@ -502,6 +746,16 @@ onMounted(() => {
 .insured-title {
   margin-bottom: 12px;
   font-weight: 600;
+}
+
+.end-date-field {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+}
+
+.end-date-field .el-input {
+  flex: 1;
 }
 
 .w-full {

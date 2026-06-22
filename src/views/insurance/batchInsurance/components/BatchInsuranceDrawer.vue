@@ -30,6 +30,19 @@
           </template>
         </el-upload>
       </div>
+      <el-divider />
+      <div class="policy-date-section">
+        <h3>3. 选择起保日期</h3>
+        <p class="desc">本批次所有人员将统一使用该起保日期。</p>
+        <el-date-picker
+          v-model="policyStartDate"
+          type="date"
+          value-format="YYYY-MM-DD"
+          placeholder="请选择起保日期"
+          :disabled-date="disableBeforeTomorrow"
+          class="policy-date-picker"
+        />
+      </div>
     </div>
 
     <div v-if="wizardStep === 2" class="wizard-step-container audit-step">
@@ -38,6 +51,7 @@
           解析完成：共 <span class="strong-text">{{ auditList.length }}</span> 条数据， 其中成功
           <span class="success-text">{{ validCount }}</span> 条， 失败 <span class="danger-text">{{ invalidCount }}</span> 条。
         </div>
+        <div class="policy-date-summary">起保日期：{{ policyStartDate }}</div>
       </div>
 
       <el-table :data="auditList" style="width: 100%" height="calc(100vh - 300px)" border :row-class-name="tableRowClassName">
@@ -143,7 +157,17 @@
               </template>
               <template v-else-if="field.type === 'address'">
                 <div class="extra-address-editor">
-                  <el-input v-model="ensureExtraAddress(scope.row, field.key).regionText" size="small" placeholder="地区" clearable />
+                  <el-cascader
+                    :model-value="getExtraAddressAreaPath(scope.row, field.key)"
+                    :options="areaOptions"
+                    :props="areaCascaderProps"
+                    size="small"
+                    placeholder="请选择省市区"
+                    clearable
+                    filterable
+                    class="extra-address-area"
+                    @change="(value) => onExtraAddressAreaChange(scope.row, field.key, value)"
+                  />
                   <el-input v-model="ensureExtraAddress(scope.row, field.key).detail" size="small" placeholder="详细地址" clearable />
                 </div>
               </template>
@@ -193,6 +217,10 @@
               ><span class="strong-count">{{ cashierData?.validCount ?? validCount }}</span> 人</span
             >
           </div>
+          <div class="cashier-item">
+            <span class="label">起保日期：</span>
+            <span class="value">{{ policyStartDate }}</span>
+          </div>
           <el-divider />
           <div class="cashier-item total">
             <span class="label">预计总扣款金额：</span>
@@ -219,7 +247,7 @@
       <div class="drawer-footer">
         <el-button @click="visible = false">取 消</el-button>
         <el-button v-if="wizardStep > 1 && !submittingBatch" @click="wizardStep--">上一步</el-button>
-        <el-button v-if="wizardStep === 1" type="primary" :disabled="!uploadedFile" @click="parseExcelFile" :loading="parsingFile">
+        <el-button v-if="wizardStep === 1" type="primary" :disabled="!uploadedFile || !policyStartDate" @click="parseExcelFile" :loading="parsingFile">
           开始解析
         </el-button>
         <el-button v-if="wizardStep === 2" type="primary" :disabled="invalidCount > 0" :loading="previewLoading" @click="goCashier">
@@ -243,6 +271,7 @@
 import { computed, ref, watch } from 'vue';
 import { ElLoading, ElMessage, ElMessageBox } from 'element-plus';
 import { Document, UploadFilled, Warning } from '@element-plus/icons-vue';
+import { areaList } from '@vant/area-data';
 import { getDicts } from '@/api/system/dict/data';
 import { getUserAccount } from '@/api/finance/myWallet';
 import { downloadBatchTemplate, importBatchData, previewBatch, submitBatch } from '@/api/insurance/batchInsurance';
@@ -251,6 +280,12 @@ import type { InsuranceDynamicField } from '@/api/insurance/dynamicForm/types';
 import { useUserStore } from '@/store/modules/user';
 import { blobValidate } from '@/utils/ruoyi';
 import FileSaver from 'file-saver';
+
+interface AreaOption {
+  label: string;
+  value: string;
+  children?: AreaOption[];
+}
 
 const props = defineProps<{
   modelValue: boolean;
@@ -279,9 +314,49 @@ const previewLoading = ref(false);
 const cashierData = ref<any>(null);
 const submittingBatch = ref(false);
 const dynamicFields = ref<InsuranceDynamicField[]>([]);
+const policyStartDate = ref('');
 
 const validCount = computed(() => auditList.value.filter((item) => item.isValid).length);
 const invalidCount = computed(() => auditList.value.filter((item) => !item.isValid).length);
+
+const areaCascaderProps = {
+  value: 'label',
+  label: 'label',
+  children: 'children',
+  emitPath: true
+};
+
+const areaOptions = computed<AreaOption[]>(() => {
+  const provinceList = areaList.province_list || {};
+  const cityList = areaList.city_list || {};
+  const countyList = areaList.county_list || {};
+
+  return Object.entries(provinceList).map(([provinceCode, provinceName]) => {
+    const provincePrefix = provinceCode.slice(0, 2);
+    const cities = Object.entries(cityList)
+      .filter(([cityCode]) => cityCode.startsWith(provincePrefix))
+      .map(([cityCode, cityName]) => {
+        const cityPrefix = cityCode.slice(0, 4);
+        const counties = Object.entries(countyList)
+          .filter(([countyCode]) => countyCode.startsWith(cityPrefix))
+          .map(([, countyName]) => ({
+            label: countyName,
+            value: countyName
+          }));
+        return {
+          label: cityName,
+          value: cityName,
+          children: counties
+        };
+      });
+
+    return {
+      label: provinceName,
+      value: provinceName,
+      children: cities
+    };
+  });
+});
 
 const getDictLabel = (dictOptions: any[], value: string | number) => {
   if (value === null || value === undefined || value === '') return '';
@@ -297,6 +372,27 @@ const getNetPremium = (product: any) => {
   const raw = Number(product.minPremium || 0);
   const rate = Number(product.displayCommissionRate ?? product.commissionRate ?? product.serviceFee ?? 0);
   return (raw * (1 - rate)).toFixed(2);
+};
+
+const formatDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getTomorrow = () => {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  return date;
+};
+
+const getTomorrowDate = () => formatDate(getTomorrow());
+
+const disableBeforeTomorrow = (date: Date) => {
+  const tomorrow = getTomorrow();
+  tomorrow.setHours(0, 0, 0, 0);
+  return date.getTime() < tomorrow.getTime();
 };
 
 const fetchDicts = () => {
@@ -337,6 +433,7 @@ const resetDrawer = () => {
   previewLoading.value = false;
   cashierData.value = null;
   submittingBatch.value = false;
+  policyStartDate.value = getTomorrowDate();
 };
 
 watch(
@@ -390,6 +487,10 @@ const handleFileChange = (file: any) => {
 const parseExcelFile = async () => {
   if (!uploadedFile.value || !uploadedFile.value.raw) {
     ElMessage.warning('请先上传文件！');
+    return;
+  }
+  if (!policyStartDate.value) {
+    ElMessage.warning('请选择起保日期！');
     return;
   }
   parsingFile.value = true;
@@ -473,6 +574,45 @@ const ensureExtraAddress = (row: any, key: string) => {
   return row.extraData[key];
 };
 
+const findAreaPathByText = (regionText: string) => {
+  const text = regionText.trim();
+  if (!text) return [];
+  for (const province of areaOptions.value) {
+    if (!text.includes(province.label)) continue;
+    for (const city of province.children || []) {
+      if (!text.includes(city.label)) continue;
+      const county = (city.children || []).find((item) => text.includes(item.label));
+      if (county) return [province.label, city.label, county.label];
+      return [province.label, city.label];
+    }
+    return [province.label];
+  }
+  return [];
+};
+
+const getAreaPathFromRegionText = (regionText: unknown) => {
+  if (Array.isArray(regionText)) {
+    return regionText.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 3);
+  }
+  const text = String(regionText || '').trim();
+  if (!text) return [];
+  const parts = text
+    .split(/[\s,，/]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (parts.length > 1) return parts.slice(0, 3);
+  return findAreaPathByText(text);
+};
+
+const getExtraAddressAreaPath = (row: any, key: string) => {
+  return getAreaPathFromRegionText(ensureExtraAddress(row, key).regionText);
+};
+
+const onExtraAddressAreaChange = (row: any, key: string, value: unknown) => {
+  const address = ensureExtraAddress(row, key);
+  address.regionText = Array.isArray(value) ? value.map((item) => String(item || '').trim()).filter(Boolean).join(' ') : '';
+};
+
 const getExtraText = (value: any) => {
   if (Array.isArray(value)) return value.join('、');
   if (value && typeof value === 'object') return [value.regionText, value.detail].filter(Boolean).join(' ');
@@ -509,6 +649,7 @@ const goCashier = async () => {
   try {
     const res = (await previewBatch({
       productId: props.product?.id,
+      policyStartDate: policyStartDate.value,
       auditList: auditList.value.filter((item) => item.isValid)
     })) as any;
     if (res.code === 200) {
@@ -533,6 +674,7 @@ const submitBatchPay = async () => {
   try {
     const res = (await submitBatch({
       productId: props.product?.id,
+      policyStartDate: policyStartDate.value,
       auditList: auditList.value.filter((item) => item.isValid)
     })) as any;
     if (res.code === 200) {
@@ -596,6 +738,19 @@ const submitBatchPay = async () => {
   margin-bottom: 10px;
 }
 
+.policy-date-section {
+  max-width: 420px;
+}
+
+.policy-date-picker {
+  width: 240px;
+}
+
+.policy-date-summary {
+  color: #606266;
+  font-weight: 600;
+}
+
 .strong-text,
 .strong-count {
   font-weight: bold;
@@ -621,6 +776,10 @@ const submitBatchPay = async () => {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.extra-address-area {
+  width: 100%;
 }
 
 .cashier-card {
