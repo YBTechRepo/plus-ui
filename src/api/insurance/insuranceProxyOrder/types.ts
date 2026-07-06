@@ -35,6 +35,11 @@ export interface InsuranceProxyOrderVO {
   productName: string;
 
   /**
+   * 起保日期
+   */
+  policyStartDate?: string;
+
+  /**
    * 业务员姓名
    */
   agentName: string;

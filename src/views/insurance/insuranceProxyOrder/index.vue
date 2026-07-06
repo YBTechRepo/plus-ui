@@ -56,19 +56,24 @@
         </el-row>
       </template>
 
-      <el-table v-loading="loading" border :data="insuranceProxyOrderList">
-        <el-table-column label="租户编号" align="center" prop="tenantId" width="110" />
-        <el-table-column label="租户名称" align="center" prop="tenantName" width="160" show-overflow-tooltip />
-        <el-table-column label="订单号" align="center" prop="orderNo" width="300">
+      <el-table ref="proxyOrderTableRef" :key="proxyOrderTableKey" v-loading="loading" border :data="insuranceProxyOrderList" row-key="id">
+        <el-table-column key="tenantId" column-key="tenantId" label="租户编号" align="center" prop="tenantId" width="110" />
+        <el-table-column key="tenantName" column-key="tenantName" label="租户名称" align="center" prop="tenantName" width="160" show-overflow-tooltip />
+        <el-table-column key="orderNo" column-key="orderNo" label="订单号" align="center" prop="orderNo" width="300">
           <template #default="scope">
             <el-link type="primary" @click="openDetailDrawer(scope.row)">{{ scope.row.orderNo }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column label="产品名称" align="center" prop="productName" width="300" show-overflow-tooltip />
-        <el-table-column label="业务员姓名" align="center" prop="agentName" width="150" />
-        <el-table-column label="登记保费" align="center" prop="premium" width="150" />
-        <el-table-column label="净费" align="center" prop="netPremium" width="150" />
-        <el-table-column label="订单状态" align="center" prop="status" width="120">
+        <el-table-column key="productName" column-key="productName" label="产品名称" align="center" prop="productName" width="300" show-overflow-tooltip />
+        <el-table-column key="policyStartDate" column-key="policyStartDate" label="起保日期" align="center" prop="policyStartDate" width="120">
+          <template #default="scope">
+            <span>{{ displayDate(scope.row.policyStartDate) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column key="agentName" column-key="agentName" label="业务员姓名" align="center" prop="agentName" width="150" />
+        <el-table-column key="premium" column-key="premium" label="登记保费" align="center" prop="premium" width="150" />
+        <el-table-column key="netPremium" column-key="netPremium" label="净费" align="center" prop="netPremium" width="150" />
+        <el-table-column key="status" column-key="status" label="订单状态" align="center" prop="status" width="120">
           <template #default="scope">
             <dict-tag :options="insurance_apply_status" :value="scope.row.status" />
           </template>
@@ -78,12 +83,12 @@
             <dict-tag :options="insurance_commission_status" :value="scope.row.commissionStatus" />
           </template>
         </el-table-column> -->
-        <el-table-column label="创建时间" align="center" prop="createTime" width="150">
+        <el-table-column key="createTime" column-key="createTime" label="创建时间" align="center" prop="createTime" width="150">
           <template #default="scope">
             <span>{{ parseTime(scope.row.createTime, '{y}-{m}-{d}') }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" align="center" fixed="right" min-width="160" class-name="small-padding fixed-width">
+        <el-table-column key="operation" column-key="operation" label="操作" align="center" fixed="right" min-width="160" class-name="small-padding fixed-width">
           <template #default="scope">
             <div class="table-action">
               <el-button link type="primary" icon="View" @click="openDetailDrawer(scope.row)">查看详情</el-button>
@@ -130,6 +135,11 @@
             </el-table-column>
             <el-table-column label="投保人" align="center" prop="appName" width="200" />
             <el-table-column label="被保人" align="center" prop="insuredName" width="200" />
+            <el-table-column label="起保日期" align="center" prop="policyStartDate" width="160">
+              <template #default="scope">
+                <span>{{ displayDate(scope.row.policyStartDate) }}</span>
+              </template>
+            </el-table-column>
             <el-table-column label="子单状态" align="center" prop="status" width="200">
               <template #default="scope">
                 <dict-tag :options="insurance_apply_status" :value="scope.row.status" />
@@ -177,6 +187,7 @@
           <el-divider />
           <el-descriptions title="订单其它信息" :column="2" border>
             <el-descriptions-item label="订单号">{{ detailDrawer.personDetail.orderNo }}</el-descriptions-item>
+            <el-descriptions-item label="起保日期">{{ displayDate(detailDrawer.personDetail.policyStartDate) }}</el-descriptions-item>
           </el-descriptions>
           <template v-if="detailExtraItems.length > 0">
             <el-divider />
@@ -196,6 +207,7 @@ import { InsuranceProxyOrderVO, InsuranceProxyOrderQuery } from '@/api/insurance
 import type { InsuranceDynamicField } from '@/api/insurance/dynamicForm/types';
 import { useUserStore } from '@/store/modules/user';
 import request from '@/utils/request';
+import { parseTime } from '@/utils/ruoyi';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const userStore = useUserStore();
@@ -207,6 +219,8 @@ const insuranceProxyOrderList = ref<InsuranceProxyOrderVO[]>([]);
 const loading = ref(true);
 const showSearch = ref(true);
 const total = ref(0);
+const proxyOrderTableRef = ref();
+const proxyOrderTableKey = ref(0);
 
 const queryFormRef = ref<ElFormInstance>();
 
@@ -237,6 +251,9 @@ const getList = async () => {
   const res = await listInsuranceProxyOrder(queryParams.value);
   insuranceProxyOrderList.value = res.rows;
   total.value = res.total;
+  proxyOrderTableKey.value += 1;
+  await nextTick();
+  proxyOrderTableRef.value?.doLayout?.();
   loading.value = false;
 };
 
@@ -308,6 +325,11 @@ const hasValue = (value: unknown) => {
 
 const displayValue = (value: unknown) => {
   return hasValue(value) ? value : '--';
+};
+
+const displayDate = (value?: string | null) => {
+  const dateValue = typeof value === 'string' ? value.trim() : value;
+  return hasValue(dateValue) ? parseTime(dateValue, '{y}-{m}-{d}') : '--';
 };
 
 const parseJsonValue = (value: any, fallback: any) => {

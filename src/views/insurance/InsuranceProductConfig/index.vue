@@ -455,7 +455,7 @@
             </el-table>
           </el-tab-pane>
 
-          <el-tab-pane label="展示物料" name="images" v-if="!isCardSecretProduct">
+          <el-tab-pane label="展示物料" name="images">
             <el-alert :title="isCardSecretProduct ? '卡密产品仅展示头图和产品详情图，详情图将存入产品特点图字段' : '图片将以 JSON 数组格式安全存入数据库附属表中'" type="info" show-icon class="mb-4" />
             <el-form-item :label="isCardSecretProduct ? '产品详情图' : '产品特点图'">
               <image-upload v-model="featureImagesStr" :limit="5" />
