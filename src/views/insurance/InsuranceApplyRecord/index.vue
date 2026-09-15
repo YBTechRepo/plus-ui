@@ -295,10 +295,6 @@
                   <td class="label">客户手机号</td>
                   <td class="value">{{ displayValue(voucherDialog.orderInfo.customerMobile) }}</td>
                 </tr>
-                <tr>
-                  <td class="label">业务员姓名</td>
-                  <td class="value" colspan="3">{{ displayValue(voucherDialog.orderInfo.agentName) }}</td>
-                </tr>
               </tbody>
             </table>
           </div>

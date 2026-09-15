@@ -282,6 +282,38 @@
             </el-row>
           </el-tab-pane>
 
+          <el-tab-pane label="渠道回调编码" name="channelMapping">
+            <el-alert
+              title="用于把渠道回调中的 companyType + productPlanCode 映射到当前平台产品。"
+              type="info"
+              show-icon
+              class="mb-4"
+            />
+            <el-button type="primary" plain icon="Plus" class="mb-2" @click="addChannelProductMapping">新增编码</el-button>
+            <el-table :data="form.channelProductMappings" border size="small">
+              <el-table-column label="渠道类型（companyType）" min-width="220">
+                <template #default="scope">
+                  <el-input v-model="scope.row.companyType" placeholder="例如 taipingyangjiankangxian" />
+                </template>
+              </el-table-column>
+              <el-table-column label="渠道产品编码" min-width="180">
+                <template #default="scope">
+                  <el-input v-model="scope.row.sourceProductCode" placeholder="请输入 productPlanCode" />
+                </template>
+              </el-table-column>
+              <el-table-column label="渠道产品名称" min-width="220">
+                <template #default="scope">
+                  <el-input v-model="scope.row.sourceProductName" placeholder="选填，用于识别配置" />
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="90" align="center">
+                <template #default="scope">
+                  <el-button link type="danger" icon="Delete" @click="removeChannelProductMapping(scope.$index)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-tab-pane>
+
           <el-tab-pane label="投保扩展字段" name="insureForm" v-if="!isRegularProduct && !isCardSecretProduct">
             <el-alert title="用于配置投保页除常规信息之外的产品扩展字段，例如家财险的房屋地址、建筑面积、房屋用途等。" type="info" show-icon class="mb-4" />
             <el-button type="primary" plain icon="Plus" @click="addInsureFormField" class="mb-2">新增字段</el-button>
@@ -772,6 +804,7 @@ const initFormData: any = {
     categoryName: undefined,
     marketingTags: undefined
   },
+  channelProductMappings: [],
   liabilityList: [],
   insureNotice: [],
   clauseFiles: [],
@@ -931,6 +964,7 @@ const handleUpdate = async (row?: InsuranceProductConfigVO) => {
   form.value = Object.assign({}, form.value, res.data);
 
   // 防空处理，确保是数组
+  form.value.channelProductMappings = form.value.channelProductMappings || [];
   form.value.liabilityList = form.value.liabilityList || [];
   form.value.insureNotice = form.value.insureNotice || [];
   form.value.clauseFiles = form.value.clauseFiles || [];
@@ -990,7 +1024,7 @@ const submitForm = () => {
       form.value.product.marketingTags = marketingTagsArr.value.length > 0 ? marketingTagsArr.value.join(',') : undefined;
       form.value.product.insureFormSchema = buildInsureFormSchema();
 
-      if (!validateCardSecretConfig()) {
+      if (!validateChannelProductMappings() || !validateCardSecretConfig()) {
         buttonLoading.value = false;
         return;
       }
@@ -1168,6 +1202,40 @@ const handleSyncAllTenantProductStatus = async () => {
 // ---------------- 动态表格操作方法 ----------------
 const addLiability = () => { form.value.liabilityList.push({ sort: form.value.liabilityList.length + 1, liabilityName: '', insuredAmountDesc: '', description: '' }); }
 const removeLiability = (index: number) => { form.value.liabilityList.splice(index, 1); }
+
+const addChannelProductMapping = () => {
+  form.value.channelProductMappings.push({
+    companyType: '',
+    sourceProductCode: '',
+    sourceProductName: ''
+  });
+};
+
+const removeChannelProductMapping = (index: number) => {
+  form.value.channelProductMappings.splice(index, 1);
+};
+
+const validateChannelProductMappings = () => {
+  const mappings = form.value.channelProductMappings || [];
+  const uniqueKeys = new Set<string>();
+  for (let index = 0; index < mappings.length; index++) {
+    const companyType = String(mappings[index].companyType || '').trim();
+    const sourceProductCode = String(mappings[index].sourceProductCode || '').trim();
+    if (!companyType || !sourceProductCode) {
+      activeTab.value = 'channelMapping';
+      proxy?.$modal.msgWarning(`第 ${index + 1} 条渠道映射未填写完整`);
+      return false;
+    }
+    const key = `${companyType.toLowerCase()}\u0000${sourceProductCode.toLowerCase()}`;
+    if (uniqueKeys.has(key)) {
+      activeTab.value = 'channelMapping';
+      proxy?.$modal.msgWarning(`第 ${index + 1} 条渠道映射与已有配置重复`);
+      return false;
+    }
+    uniqueKeys.add(key);
+  }
+  return true;
+};
 
 const addNotice = () => { form.value.insureNotice.push({ sort: form.value.insureNotice.length + 1, title: '', content: '' }); }
 const removeNotice = (index: number) => { form.value.insureNotice.splice(index, 1); }

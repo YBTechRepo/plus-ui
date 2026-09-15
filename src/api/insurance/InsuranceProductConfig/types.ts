@@ -341,6 +341,15 @@ export interface CardSpecItem {
   status?: number;
 }
 
+/**
+ * 渠道回调产品编码映射
+ */
+export interface InsuranceProductChannelMapping {
+  companyType: string;
+  sourceProductCode: string;
+  sourceProductName?: string;
+}
+
 export interface ServiceFeeCommissionSyncResult {
   productCount: number;
   tenantCount: number;

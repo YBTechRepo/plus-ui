@@ -101,6 +101,9 @@
             <el-table :data="form.subRoles" border size="small" highlight-current-row @current-change="handleSubRoleCurrentChange" height="300">
               <el-table-column label="角色名称" align="center" prop="roleName" :show-overflow-tooltip="true" />
               <el-table-column label="权限字符" align="center" prop="roleKey" :show-overflow-tooltip="true" />
+              <el-table-column label="数据范围" align="center" min-width="130">
+                <template #default="scope">{{ getDataScopeLabel(scope.row.dataScope) }}</template>
+              </el-table-column>
               <el-table-column label="操作" align="center" width="80">
                 <template #default="scope">
                   <el-button link type="danger" icon="Delete" @click.stop="handleRemoveSubRole(scope.$index)"></el-button>
@@ -151,7 +154,12 @@
           <el-input v-model="subRoleForm.roleName" placeholder="请输入角色名称" />
         </el-form-item>
         <el-form-item label="权限字符" prop="roleKey">
-          <el-input v-model="subRoleForm.roleKey" placeholder="请输入权限字符" />
+          <el-input v-model="subRoleForm.roleKey" placeholder="请输入权限字符" @change="handleRoleKeyChange" />
+        </el-form-item>
+        <el-form-item label="数据范围" prop="dataScope">
+          <el-select v-model="subRoleForm.dataScope" placeholder="请选择数据范围" class="w-full">
+            <el-option v-for="item in dataScopeOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -195,6 +203,20 @@ const menuOptions = ref<MenuTreeOption[]>([]);
 const currentSubRole = ref<SubRoleTemplate | undefined>(undefined);
 const packageList = ref<TenantPkgVO[]>([]);
 
+const dataScopeOptions = [
+  { value: '1', label: '全部数据权限' },
+  { value: '3', label: '本部门数据权限' },
+  { value: '4', label: '本部门及以下数据权限' },
+  { value: '5', label: '仅本人数据权限' },
+  { value: '6', label: '部门及以下或本人数据权限' }
+];
+
+const defaultDataScopeByRoleKey: Record<string, string> = {
+  leader: '1',
+  teamleader: '4',
+  bizman: '5'
+};
+
 const queryFormRef = ref<ElFormInstance>();
 const roleTemplateFormRef = ref<ElFormInstance>();
 const menuTreeRef = ref<ElTreeInstance>();
@@ -212,12 +234,14 @@ const subRoleDialog = reactive<DialogOption>({
 
 const subRoleForm = ref<Partial<SubRoleTemplate>>({
   roleName: '',
-  roleKey: ''
+  roleKey: '',
+  dataScope: undefined
 });
 
 const subRoleRules = {
   roleName: [{ required: true, message: '角色名称不能为空', trigger: 'blur' }],
-  roleKey: [{ required: true, message: '权限字符不能为空', trigger: 'blur' }]
+  roleKey: [{ required: true, message: '权限字符不能为空', trigger: 'blur' }],
+  dataScope: [{ required: true, message: '数据范围不能为空', trigger: 'change' }]
 };
 
 const initFormData: RoleTemplateForm = {
@@ -348,7 +372,11 @@ const handleUpdate = async (row?: RoleTemplateVO) => {
   Object.assign(form.value, res.data);
   // 解析 JSON
   try {
-    form.value.subRoles = res.data.rolesJson ? JSON.parse(res.data.rolesJson) : [];
+    const subRoles: SubRoleTemplate[] = res.data.rolesJson ? JSON.parse(res.data.rolesJson) : [];
+    form.value.subRoles = subRoles.map((role) => ({
+      ...role,
+      dataScope: role.dataScope || defaultDataScopeByRoleKey[role.roleKey] || ''
+    }));
   } catch (e) {
     form.value.subRoles = [];
   }
@@ -366,7 +394,8 @@ const handleUpdate = async (row?: RoleTemplateVO) => {
 const handleAddSubRole = () => {
   subRoleForm.value = {
     roleName: '',
-    roleKey: ''
+    roleKey: '',
+    dataScope: undefined
   };
   subRoleDialog.visible = true;
 };
@@ -381,6 +410,7 @@ const submitSubRoleForm = () => {
       form.value.subRoles.push({
         roleName: subRoleForm.value.roleName as string,
         roleKey: subRoleForm.value.roleKey as string,
+        dataScope: subRoleForm.value.dataScope as string,
         menuIds: [],
         sort: form.value.subRoles.length + 1
       });
@@ -390,6 +420,17 @@ const submitSubRoleForm = () => {
       subRoleDialog.visible = false;
     }
   });
+};
+
+const handleRoleKeyChange = (roleKey: string) => {
+  const defaultDataScope = defaultDataScopeByRoleKey[roleKey];
+  if (defaultDataScope) {
+    subRoleForm.value.dataScope = defaultDataScope;
+  }
+};
+
+const getDataScopeLabel = (dataScope: string) => {
+  return dataScopeOptions.find((item) => item.value === dataScope)?.label || '未配置';
 };
 
 /** 取出树的全部叶子节点 */

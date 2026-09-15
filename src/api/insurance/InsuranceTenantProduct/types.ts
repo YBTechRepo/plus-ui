@@ -90,6 +90,11 @@ export interface InsuranceTenantProductVO {
   netPremium?: number | string;
 
   /**
+   * 当前登录用户按角色可展示的佣金比例
+   */
+  displayCommissionRate?: number | string;
+
+  /**
    * 乐观锁版本
    */
   version: number;

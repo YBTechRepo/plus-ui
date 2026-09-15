@@ -33,6 +33,7 @@ export interface RoleTemplateVO {
 export interface SubRoleTemplate {
   roleName: string;
   roleKey: string;
+  dataScope: string;
   menuIds: (string | number)[];
   sort: number;
 }

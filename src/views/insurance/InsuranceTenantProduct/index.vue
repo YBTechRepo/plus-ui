@@ -159,8 +159,8 @@
               <template #default="scope">
                 <div class="fee-cell">
                   <span>保费：{{ scope.row.minPremium ?? '-' }}</span>
-                  <span>服务费：{{ scope.row.serviceFee != null ? (parseFloat(scope.row.serviceFee) * 100).toFixed(2) + '%' : '-' }}</span>
-                  <span>净费：{{ scope.row.netPremium != null ? scope.row.netPremium : '-' }}</span>
+                  <span v-if="shouldDisplayNetPremium(scope.row)">净费：{{ calculateNetPremium(scope.row) }}</span>
+                  <span>推广佣金：{{ formatDisplayCommissionRate(scope.row.displayCommissionRate) }}</span>
                 </div>
               </template>
             </el-table-column>
@@ -554,7 +554,7 @@ const activeCategoryId = ref<string | number>();
 const categoryOptions = ref<any[]>([]);
 const categoryTreeOptions = ref<any[]>([]);
 const defaultCategoryIcon = 'fluent:tag-24-filled';
-type SortField = 'minPremium' | 'netPremium' | 'serviceFee';
+type SortField = 'minPremium' | 'netPremium' | 'displayCommissionRate';
 type FilterTag = { label: string; value: string; type: 'category' | 'marketingTag' };
 const activeSortField = ref<SortField>();
 const sortOrder = ref<'asc' | 'desc'>('desc');
@@ -562,7 +562,7 @@ const activeFilterCategoryId = ref<string | number>();
 const sortOptions: Array<{ label: string; field: SortField }> = [
   { label: '保费', field: 'minPremium' },
   { label: '净费', field: 'netPremium' },
-  { label: '服务费', field: 'serviceFee' }
+  { label: '佣金', field: 'displayCommissionRate' }
 ];
 
 const queryFormRef = ref<ElFormInstance>();
@@ -753,11 +753,35 @@ const toSortNumber = (value: unknown) => {
   return Number.isFinite(num) ? num : 0;
 };
 
+const getDisplayCommissionRate = (row: InsuranceTenantProductVO) => toSortNumber(row.displayCommissionRate);
+
+const shouldDisplayNetPremium = (row: InsuranceTenantProductVO) => Number(row.productMode) === 1;
+
+const calculateNetPremium = (row: InsuranceTenantProductVO): string => {
+  if (row.minPremium === null || row.minPremium === undefined) return '-';
+  return (toSortNumber(row.minPremium) * (1 - getDisplayCommissionRate(row))).toFixed(2);
+};
+
+const formatDisplayCommissionRate = (rate: number | string | undefined): string => {
+  if (rate === null || rate === undefined) return '-';
+  return `${(toSortNumber(rate) * 100).toFixed(2).replace(/\.?0+$/, '')}%`;
+};
+
+const getSortValue = (row: InsuranceTenantProductVO, field: SortField) => {
+  if (field === 'netPremium') {
+    return toSortNumber(row.minPremium) * (1 - getDisplayCommissionRate(row));
+  }
+  if (field === 'displayCommissionRate') {
+    return toSortNumber(row.minPremium) * getDisplayCommissionRate(row);
+  }
+  return toSortNumber(row[field]);
+};
+
 const sortRows = (rows: InsuranceTenantProductVO[]) => {
   if (!activeSortField.value) return rows;
   const field = activeSortField.value;
   const direction = sortOrder.value === 'asc' ? 1 : -1;
-  return [...rows].sort((a, b) => (toSortNumber(a[field]) - toSortNumber(b[field])) * direction);
+  return [...rows].sort((a, b) => (getSortValue(a, field) - getSortValue(b, field)) * direction);
 };
 
 const getCurrentCategoryId = () => activeFilterCategoryId.value ?? activeCategoryId.value;

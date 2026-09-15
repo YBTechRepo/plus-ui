@@ -441,7 +441,7 @@ const handleRefreshAllTenantDictCache = async () => {
 
 /**同步租户参数配置*/
 const handleSyncTenantConfig = async () => {
-  await proxy?.$modal.confirm('确认要同步所有租户参数配置吗？');
+  await proxy?.$modal.confirm('确认要将管理员参数配置同步到所有启用租户吗？该操作会覆盖租户已有的同名参数值。');
   const res = await syncTenantConfig();
   proxy?.$modal.msgSuccess(res.msg);
 };
