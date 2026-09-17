@@ -582,7 +582,8 @@
           </el-tab-pane>
 
         </el-tabs>
-      </el-form>
+      <ApplicationFormConfig v-model="form.product" />
+        </el-form>
 
       <template #footer>
         <div class="dialog-footer">
@@ -595,6 +596,8 @@
 </template>
 
 <script setup name="InsuranceProductConfig" lang="ts">
+import ApplicationFormConfig from './ApplicationFormConfig.vue';
+
 // 🌟 核心 API 修改：导入自定义的 Full 接口
 import {
   listInsuranceProductConfig,
@@ -793,6 +796,9 @@ const initFormData: any = {
     imgUrl: undefined,
     productFeatures: undefined,
     insureFormSchema: undefined,
+    applicationFormRequired: false,
+    applicationTemplateCode: 'hh-student-2025',
+    applicationTemplateVersion: 'v1',
     description: undefined,
     status: undefined,
     sort: 0,

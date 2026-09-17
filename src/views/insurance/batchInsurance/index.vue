@@ -625,7 +625,7 @@ const fetchProducts = async () => {
     // 仅展示 productMode=1（卡单）+ insureMode=1（直降）+ paymentMode=1（余额支付）的产品，兼容后端返回字符串枚举。
     allProducts = allProducts.filter((p: any) => Number(p.productMode) === 1 && Number(p.insureMode) === 1 && Number(p.paymentMode) === 1);
 
-    productList.value = allProducts;
+    productList.value = allProducts.filter((product: any) => product.batchAllowed !== false);
   } catch (err) {
     console.error('Failed to load products:', err);
   } finally {

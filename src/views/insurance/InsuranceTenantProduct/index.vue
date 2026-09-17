@@ -176,7 +176,7 @@
             <el-table-column label="操作" align="center" fixed="right" width="230" class-name="small-padding fixed-width">
               <template #default="scope">
                 <el-button link type="primary" icon="View" @click="handleView(scope.row)">详情 / 投保</el-button>
-                <el-button v-if="canBatchInsure(scope.row)" link type="warning" icon="Upload" @click="handleBatchInsure(scope.row)"
+                <el-button v-if="scope.row.batchAllowed !== false && canBatchInsure(scope.row)" link type="warning" icon="Upload" @click="handleBatchInsure(scope.row)"
                   >批量投保</el-button
                 >
                 <el-dropdown trigger="click" class="table-more-actions">

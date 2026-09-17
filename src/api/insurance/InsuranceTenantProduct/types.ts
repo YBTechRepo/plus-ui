@@ -1,4 +1,8 @@
 export interface InsuranceTenantProductVO {
+  applicationFormRequired?: boolean;
+  applicationTemplateCode?: string;
+  applicationTemplateVersion?: string;
+  batchAllowed?: boolean;
   /**
    * ID
    */

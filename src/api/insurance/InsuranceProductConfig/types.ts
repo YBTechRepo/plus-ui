@@ -1,4 +1,8 @@
 export interface InsuranceProductConfigVO {
+  applicationFormRequired?: boolean;
+  applicationTemplateCode?: string;
+  applicationTemplateVersion?: string;
+  batchAllowed?: boolean;
   /**
    * id
    */
@@ -141,6 +145,10 @@ export interface InsuranceProductConfigVO {
 }
 
 export interface InsuranceProductConfigForm extends BaseEntity {
+  applicationFormRequired?: boolean;
+  applicationTemplateCode?: string;
+  applicationTemplateVersion?: string;
+  batchAllowed?: boolean;
   /**
    * id
    */

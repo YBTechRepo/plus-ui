@@ -49,22 +49,56 @@
         <el-row :gutter="10" class="mb8">
           <el-col :span="1.5">
             <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['insurance:insuranceProxyOrder:export']"
-              >导出</el-button
+              >导出订单 Excel</el-button
             >
+          </el-col>
+          <el-col v-if="isSystemAdmin" :span="1.5">
+            <el-button type="primary" plain icon="FolderOpened" @click="openApplicationExport" v-hasPermi="['insurance:insuranceProxyOrder:query']">
+              批量导出投保单
+            </el-button>
+          </el-col>
+          <el-col v-if="isSystemAdmin" :span="1.5">
+            <el-button plain icon="List" @click="applicationExportTasksRef?.openRecords()" v-hasPermi="['insurance:insuranceProxyOrder:query']">
+              导出记录
+            </el-button>
           </el-col>
           <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
         </el-row>
       </template>
 
-      <el-table ref="proxyOrderTableRef" :key="proxyOrderTableKey" v-loading="loading" border :data="insuranceProxyOrderList" row-key="id">
+      <el-table
+        ref="proxyOrderTableRef"
+        v-loading="loading"
+        border
+        :data="insuranceProxyOrderList"
+        row-key="id"
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="55" fixed="left" reserve-selection :selectable="isApplicationFormSelectable" />
         <el-table-column key="tenantId" column-key="tenantId" label="租户编号" align="center" prop="tenantId" width="110" />
-        <el-table-column key="tenantName" column-key="tenantName" label="租户名称" align="center" prop="tenantName" width="160" show-overflow-tooltip />
+        <el-table-column
+          key="tenantName"
+          column-key="tenantName"
+          label="租户名称"
+          align="center"
+          prop="tenantName"
+          width="160"
+          show-overflow-tooltip
+        />
         <el-table-column key="orderNo" column-key="orderNo" label="订单号" align="center" prop="orderNo" width="300">
           <template #default="scope">
             <el-link type="primary" @click="openDetailDrawer(scope.row)">{{ scope.row.orderNo }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column key="productName" column-key="productName" label="产品名称" align="center" prop="productName" width="300" show-overflow-tooltip />
+        <el-table-column
+          key="productName"
+          column-key="productName"
+          label="产品名称"
+          align="center"
+          prop="productName"
+          width="300"
+          show-overflow-tooltip
+        />
         <el-table-column key="policyStartDate" column-key="policyStartDate" label="起保日期" align="center" prop="policyStartDate" width="120">
           <template #default="scope">
             <span>{{ displayDate(scope.row.policyStartDate) }}</span>
@@ -78,6 +112,14 @@
             <dict-tag :options="insurance_apply_status" :value="scope.row.status" />
           </template>
         </el-table-column>
+        <el-table-column key="applicationFormStatus" column-key="applicationFormStatus" label="投保单状态" align="center" width="120">
+          <template #default="scope">
+            <el-tag v-if="scope.row.applicationFormRequired" :type="applicationFormStatusMeta(scope.row.applicationFormStatus).type">
+              {{ applicationFormStatusMeta(scope.row.applicationFormStatus).label }}
+            </el-tag>
+            <span v-else>未启用</span>
+          </template>
+        </el-table-column>
         <!-- <el-table-column label="结算状态" align="center" prop="commissionStatus" width="120">
           <template #default="scope">
             <dict-tag :options="insurance_commission_status" :value="scope.row.commissionStatus" />
@@ -88,10 +130,27 @@
             <span>{{ parseTime(scope.row.createTime, '{y}-{m}-{d}') }}</span>
           </template>
         </el-table-column>
-        <el-table-column key="operation" column-key="operation" label="操作" align="center" fixed="right" min-width="160" class-name="small-padding fixed-width">
+        <el-table-column
+          key="operation"
+          column-key="operation"
+          label="操作"
+          align="center"
+          fixed="right"
+          width="240"
+          class-name="small-padding fixed-width"
+        >
           <template #default="scope">
             <div class="table-action">
               <el-button link type="primary" icon="View" @click="openDetailDrawer(scope.row)">查看详情</el-button>
+              <el-button
+                v-if="scope.row.applicationFormRequired"
+                link
+                type="primary"
+                icon="Document"
+                @click="applicationDocumentRef?.open(scope.row.id, scope.row.orderNo)"
+                v-hasPermi="['insurance:insuranceProxyOrder:query']"
+                >投保单</el-button
+              >
               <el-dropdown v-if="canCancelOrder(scope.row)" trigger="click" @command="(command) => handleMoreCommand(command, scope.row)">
                 <el-button link type="primary" icon="ArrowDown">更多</el-button>
                 <template #dropdown>
@@ -107,6 +166,9 @@
 
       <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
     </el-card>
+
+    <ApplicationDocument ref="applicationDocumentRef" />
+    <ApplicationExportTasks ref="applicationExportTasksRef" />
 
     <!-- 详情抽屉 -->
     <el-drawer v-model="detailDrawer.visible" :title="drawerTitle" size="80%" direction="rtl">
@@ -192,7 +254,9 @@
           <template v-if="detailExtraItems.length > 0">
             <el-divider />
             <el-descriptions title="扩展字段" :column="2" border>
-              <el-descriptions-item v-for="item in detailExtraItems" :key="item.key" :label="item.label">{{ displayExtraValue(item) }}</el-descriptions-item>
+              <el-descriptions-item v-for="item in detailExtraItems" :key="item.key" :label="item.label">{{
+                displayExtraValue(item)
+              }}</el-descriptions-item>
             </el-descriptions>
           </template>
         </div>
@@ -202,6 +266,8 @@
 </template>
 
 <script setup name="InsuranceProxyOrder" lang="ts">
+import ApplicationDocument from './ApplicationDocument.vue';
+import ApplicationExportTasks from './ApplicationExportTasks.vue';
 import { changeInsuranceProxyOrderStatus, listInsuranceProxyOrder } from '@/api/insurance/insuranceProxyOrder';
 import { InsuranceProxyOrderVO, InsuranceProxyOrderQuery } from '@/api/insurance/insuranceProxyOrder/types';
 import type { InsuranceDynamicField } from '@/api/insurance/dynamicForm/types';
@@ -220,7 +286,9 @@ const loading = ref(true);
 const showSearch = ref(true);
 const total = ref(0);
 const proxyOrderTableRef = ref();
-const proxyOrderTableKey = ref(0);
+const applicationDocumentRef = ref<InstanceType<typeof ApplicationDocument>>();
+const applicationExportTasksRef = ref<InstanceType<typeof ApplicationExportTasks>>();
+const selectedOrderIds = ref<Array<string | number>>([]);
 
 const queryFormRef = ref<ElFormInstance>();
 
@@ -251,7 +319,6 @@ const getList = async () => {
   const res = await listInsuranceProxyOrder(queryParams.value);
   insuranceProxyOrderList.value = res.rows;
   total.value = res.total;
-  proxyOrderTableKey.value += 1;
   await nextTick();
   proxyOrderTableRef.value?.doLayout?.();
   loading.value = false;
@@ -259,6 +326,8 @@ const getList = async () => {
 
 /** 搜索按钮操作 */
 const handleQuery = () => {
+  proxyOrderTableRef.value?.clearSelection?.();
+  selectedOrderIds.value = [];
   queryParams.value.pageNum = 1;
   getList();
 };
@@ -276,6 +345,28 @@ const handleExport = () => {
 };
 
 const isSystemAdmin = computed(() => userStore.roles.includes('superadmin'));
+
+const handleSelectionChange = (rows: InsuranceProxyOrderVO[]) => {
+  selectedOrderIds.value = rows.map((row) => row.id);
+};
+
+const isApplicationFormSelectable = (row: InsuranceProxyOrderVO) => Boolean(row.applicationFormRequired);
+
+const applicationFormStatusMeta = (status?: string): { label: string; type: 'info' | 'primary' | 'success' | 'warning' | 'danger' } => {
+  const statusMap: Record<string, { label: string; type: 'info' | 'primary' | 'success' | 'warning' | 'danger' }> = {
+    MISSING: { label: '未生成', type: 'info' },
+    DRAFT: { label: '待签署', type: 'warning' },
+    GENERATING: { label: '生成中', type: 'primary' },
+    READY: { label: '已就绪', type: 'success' },
+    FAILED: { label: '生成失败', type: 'danger' },
+    INVALID: { label: '已失效', type: 'danger' }
+  };
+  return statusMap[status || 'MISSING'] || statusMap.MISSING;
+};
+
+const openApplicationExport = () => {
+  applicationExportTasksRef.value?.openCreate(selectedOrderIds.value, queryParams.value);
+};
 
 const canCancelOrder = (row: InsuranceProxyOrderVO) => {
   return isSystemAdmin.value && Number(row.status) !== 4;

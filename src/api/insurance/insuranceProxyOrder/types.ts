@@ -123,6 +123,48 @@ export interface InsuranceProxyOrderVO {
    * 所属批次单号
    */
   batchOrderNo: string;
+
+  applicationFormRequired?: boolean;
+
+  applicationFormStatus?: string;
+}
+
+export interface InsuranceApplicationFormStatus {
+  required: boolean;
+  status: 'MISSING' | 'DRAFT' | 'GENERATING' | 'FAILED' | 'INVALID' | 'READY';
+  signedTime?: string;
+  failureReason?: string;
+  applicantName?: string;
+  insuredSignerName?: string;
+  insuredSignerRole?: string;
+}
+
+export type InsuranceApplicationExportScope = 'SELECTED' | 'FILTER';
+
+export type InsuranceApplicationExportTaskStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'PARTIAL' | 'FAILED' | 'EXPIRED';
+
+export interface InsuranceApplicationExportRequest {
+  requestId: string;
+  scope: InsuranceApplicationExportScope;
+  orderIds?: Array<string | number>;
+  query?: Partial<InsuranceProxyOrderQuery>;
+}
+
+export interface InsuranceApplicationExportTaskVO {
+  id: string | number;
+  scope: InsuranceApplicationExportScope;
+  status: InsuranceApplicationExportTaskStatus;
+  totalCount: number;
+  successCount: number;
+  skippedCount: number;
+  fileName?: string;
+  zipSize?: number;
+  expiresAt?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  failureReason?: string;
+  createTime?: string;
+  canDownload: boolean;
 }
 
 export interface InsuranceProxyOrderForm extends BaseEntity {
