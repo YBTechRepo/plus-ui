@@ -37,11 +37,6 @@
           <div v-show="showSearch" class="mb-[10px]">
             <el-card shadow="hover">
               <el-form ref="queryFormRef" :model="queryParams" :inline="true">
-                <el-form-item label="上架状态" prop="status">
-                  <el-select v-model="queryParams.status" placeholder="请选择上架状态" clearable>
-                    <el-option v-for="dict in insurance_product_status" :key="dict.value" :label="dict.label" :value="dict.value" />
-                  </el-select>
-                </el-form-item>
                 <el-form-item label="产品模式" prop="productMode">
                   <el-select v-model="queryParams.productMode" placeholder="请选择产品模式" clearable>
                     <el-option v-for="dict in insurance_product_mode" :key="dict.value" :label="dict.label" :value="Number(dict.value)" />
@@ -412,6 +407,7 @@ const { insurance_product_type, insurance_product_mode, insurance_company, insur
 
 const InsuranceTenantProductList = ref<InsuranceTenantProductVO[]>([]);
 const allTenantProductList = ref<InsuranceTenantProductVO[]>([]);
+const LISTED_PRODUCT_STATUS = '0';
 
 /** 解析服务费配置 JSON（用于产品选择弹窗展示） */
 const parseServiceFeeConfig = (raw: any): any[] => {
@@ -642,7 +638,7 @@ const data = reactive<PageData<InsuranceTenantProductForm, InsuranceTenantProduc
     productName: undefined,
     productType: undefined,
     productMode: undefined,
-    status: undefined,
+    status: LISTED_PRODUCT_STATUS,
     categoryId: undefined,
     params: {}
   },
@@ -794,6 +790,7 @@ const buildListQuery = (pageNum = queryParams.value.pageNum, pageSize = queryPar
     params,
     pageNum,
     pageSize,
+    status: LISTED_PRODUCT_STATUS,
     categoryId: undefined
   };
 };

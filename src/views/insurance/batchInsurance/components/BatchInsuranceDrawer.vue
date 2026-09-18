@@ -3,7 +3,8 @@
     <el-steps :active="wizardStep" finish-status="success" simple style="margin-bottom: 20px">
       <el-step title="上传人员清单" />
       <el-step title="数据预审" />
-      <el-step title="确认收银" />
+      <el-step :title="signedMode ? '确认待签批次' : '确认收银'" />
+      <el-step v-if="signedMode" title="签署进度" />
     </el-steps>
 
     <div v-if="wizardStep === 1" class="wizard-step-container">
@@ -183,8 +184,8 @@
 
         <el-table-column fixed="right" label="操作" width="130" align="center">
           <template #default="scope">
-            <el-button v-if="!scope.row.isEditing" link type="primary" size="small" @click="scope.row.isEditing = true">修改</el-button>
-            <el-button v-else link type="success" size="small" @click="saveRowEdit(scope.row)">保存</el-button>
+            <el-button v-if="!signedMode && !scope.row.isEditing" link type="primary" size="small" @click="scope.row.isEditing = true">修改</el-button>
+            <el-button v-else-if="scope.row.isEditing" link type="success" size="small" @click="saveRowEdit(scope.row)">保存</el-button>
             <el-popconfirm title="确定要删除此人员记录吗？" @confirm="deleteRow(scope.$index)" width="200px">
               <template #reference>
                 <el-button link type="danger" size="small">删除</el-button>
@@ -199,7 +200,7 @@
       <el-card class="cashier-card" shadow="hover">
         <template #header>
           <div class="card-header">
-            <span>批量投保收银台</span>
+            <span>{{ signedMode ? '待签批次确认' : '批量投保收银台' }}</span>
           </div>
         </template>
         <div class="cashier-content">
@@ -223,7 +224,7 @@
           </div>
           <el-divider />
           <div class="cashier-item total">
-            <span class="label">预计总扣款金额：</span>
+            <span class="label">{{ signedMode ? '全部签署完成后扣款：' : '预计总扣款金额：' }}</span>
             <span class="value price total-price">¥{{ cashierData?.totalAmount ?? (Number(getNetPremium(product)) * validCount).toFixed(2) }}</span>
           </div>
           <div class="cashier-item balance">
@@ -232,7 +233,15 @@
           </div>
 
           <el-alert
-            v-if="cashierData ? !cashierData.isBalanceSufficient : userBalance < Number(getNetPremium(product)) * validCount"
+            v-if="signedMode"
+            title="创建批次不会扣款。每位签署人完成指定签字、全部投保单生成成功后，再由经办人确认整批扣款。"
+            type="warning"
+            :closable="false"
+            show-icon
+            style="margin-top: 15px"
+          />
+          <el-alert
+            v-if="!signedMode && (cashierData ? !cashierData.isBalanceSufficient : userBalance < Number(getNetPremium(product)) * validCount)"
             title="余额不足，请先充值后再进行批量投保提交。"
             type="error"
             :closable="false"
@@ -243,10 +252,37 @@
       </el-card>
     </div>
 
+    <div v-if="signedMode && wizardStep === 4" class="wizard-step-container">
+      <el-alert
+        title="请逐人生成并发送签署链接。所有投保单状态均为 READY 后，才可整批扣款。"
+        type="info"
+        :closable="false"
+        show-icon
+        class="mb-4"
+      />
+      <div class="audit-stats mb-3">
+        批次 {{ signedBatchNo }}：已完成 <span class="success-text">{{ signingProgress?.readyCount || 0 }}</span> /
+        {{ signingProgress?.totalCount || 0 }} 人
+      </div>
+      <el-table :data="signingProgress?.rows || []" border height="calc(100vh - 310px)">
+        <el-table-column prop="customerName" label="被保险人" width="130" />
+        <el-table-column prop="customerMobile" label="手机号" width="140" />
+        <el-table-column prop="applicationFormStatus" label="投保单状态" width="130" />
+        <el-table-column label="签署人">
+          <template #default="scope">
+            <div v-for="invite in scope.row.invites || []" :key="invite.inviteId" class="invite-row">
+              <span>{{ invite.signerName }}（{{ invite.signerRole }}）- {{ invite.status }}</span>
+              <el-button link type="primary" :disabled="invite.status === 'SIGNED'" @click="createSigningLink(invite.inviteId)">生成链接/二维码</el-button>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
+
     <template #footer>
       <div class="drawer-footer">
         <el-button @click="visible = false">取 消</el-button>
-        <el-button v-if="wizardStep > 1 && !submittingBatch" @click="wizardStep--">上一步</el-button>
+        <el-button v-if="wizardStep > 1 && wizardStep < 4 && !submittingBatch" @click="wizardStep--">上一步</el-button>
         <el-button v-if="wizardStep === 1" type="primary" :disabled="!uploadedFile || !policyStartDate" @click="parseExcelFile" :loading="parsingFile">
           开始解析
         </el-button>
@@ -258,28 +294,46 @@
           type="primary"
           @click="submitBatchPay"
           :loading="submittingBatch"
-          :disabled="userBalance < Number(getNetPremium(product)) * validCount || validCount === 0"
+          :disabled="(!signedMode && userBalance < Number(getNetPremium(product)) * validCount) || validCount === 0"
         >
-          全员投保出单并扣款
+          {{ signedMode ? '创建待签批次（不扣款）' : '全员投保出单并扣款' }}
         </el-button>
+        <el-button v-if="signedMode && wizardStep === 4" @click="refreshSigningProgress" :loading="progressLoading">刷新进度</el-button>
+        <el-button
+          v-if="signedMode && wizardStep === 4"
+          type="primary"
+          :disabled="!signingProgress?.allReady"
+          :loading="submittingBatch"
+          @click="payReadyBatch"
+        >全部签署完成，整批扣款</el-button>
       </div>
     </template>
+    <SigningLinkDialog v-model="signingLinkDialog.visible" :url="signingLinkDialog.url" />
   </el-drawer>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { ElLoading, ElMessage, ElMessageBox } from 'element-plus';
 import { Document, UploadFilled, Warning } from '@element-plus/icons-vue';
 import { areaList } from '@vant/area-data';
 import { getDicts } from '@/api/system/dict/data';
 import { getUserAccount } from '@/api/finance/myWallet';
-import { downloadBatchTemplate, importBatchData, previewBatch, submitBatch } from '@/api/insurance/batchInsurance';
+import {
+  downloadBatchTemplate,
+  getSignedBatchProgress,
+  importBatchData,
+  issueSignedBatchLink,
+  paySignedBatch,
+  previewBatch,
+  submitBatch
+} from '@/api/insurance/batchInsurance';
 import { getProductFull } from '@/api/insurance/InsuranceProductConfig';
 import type { InsuranceDynamicField } from '@/api/insurance/dynamicForm/types';
 import { useUserStore } from '@/store/modules/user';
 import { blobValidate } from '@/utils/ruoyi';
 import FileSaver from 'file-saver';
+import SigningLinkDialog from './SigningLinkDialog.vue';
 
 interface AreaOption {
   label: string;
@@ -315,6 +369,15 @@ const cashierData = ref<any>(null);
 const submittingBatch = ref(false);
 const dynamicFields = ref<InsuranceDynamicField[]>([]);
 const policyStartDate = ref('');
+const templateMode = ref('');
+const templateVersion = ref('');
+const schemaHash = ref('');
+const signedBatchNo = ref('');
+const signingProgress = ref<any>(null);
+const signingLinkDialog = reactive({ visible: false, url: '' });
+const progressLoading = ref(false);
+
+const signedMode = computed(() => props.product?.batchTemplateMode === 'SIGNED_APPLICATION' || props.product?.applicationFormRequired === true);
 
 const validCount = computed(() => auditList.value.filter((item) => item.isValid).length);
 const invalidCount = computed(() => auditList.value.filter((item) => !item.isValid).length);
@@ -434,6 +497,11 @@ const resetDrawer = () => {
   cashierData.value = null;
   submittingBatch.value = false;
   policyStartDate.value = getTomorrowDate();
+  templateMode.value = '';
+  templateVersion.value = '';
+  schemaHash.value = '';
+  signedBatchNo.value = '';
+  signingProgress.value = null;
 };
 
 watch(
@@ -457,7 +525,7 @@ const downloadTemplate = async () => {
     const resp = (await downloadBatchTemplate(props.product.id)) as unknown as Blob;
     const isBlob = await blobValidate(resp);
     if (isBlob) {
-      FileSaver.saveAs(new Blob([resp]), '人员清单导入模板.xlsx');
+      FileSaver.saveAs(new Blob([resp]), signedMode.value ? '签字投保单人员清单导入模板.xlsx' : '人员清单导入模板.xlsx');
     } else {
       const resText = await new Blob([resp]).text();
       const rspObj = JSON.parse(resText);
@@ -501,6 +569,9 @@ const parseExcelFile = async () => {
     const res = (await importBatchData(formData)) as any;
     if (res.code === 200 && res.data) {
       auditList.value = res.data.auditList || [];
+      templateMode.value = res.data.templateMode || '';
+      templateVersion.value = res.data.templateVersion || '';
+      schemaHash.value = res.data.schemaHash || '';
       wizardStep.value = 2;
       ElMessage.success(`解析完成！成功 ${res.data.validCount} 条，异常 ${res.data.invalidCount} 条`);
     } else {
@@ -647,10 +718,13 @@ const deleteRow = (index: number) => {
 const goCashier = async () => {
   previewLoading.value = true;
   try {
+    const rows = auditList.value.filter((item) => item.isValid);
     const res = (await previewBatch({
       productId: props.product?.id,
       policyStartDate: policyStartDate.value,
-      auditList: auditList.value.filter((item) => item.isValid)
+      ...(signedMode.value
+        ? { templateMode: templateMode.value, templateVersion: templateVersion.value, schemaHash: schemaHash.value, signedAuditList: rows }
+        : { auditList: rows })
     })) as any;
     if (res.code === 200) {
       cashierData.value = res.data;
@@ -668,17 +742,28 @@ const submitBatchPay = async () => {
   submittingBatch.value = true;
   const loadingInstance = ElLoading.service({
     lock: true,
-    text: '正在生成订单并扣款，请勿刷新页面...',
+    text: signedMode.value ? '正在创建待签批次和投保单快照，请勿刷新页面...' : '正在生成订单并扣款，请勿刷新页面...',
     background: 'rgba(0, 0, 0, 0.7)'
   });
   try {
+    const rows = auditList.value.filter((item) => item.isValid);
     const res = (await submitBatch({
       productId: props.product?.id,
       policyStartDate: policyStartDate.value,
-      auditList: auditList.value.filter((item) => item.isValid)
+      ...(signedMode.value
+        ? { templateMode: templateMode.value, templateVersion: templateVersion.value, schemaHash: schemaHash.value, signedAuditList: rows }
+        : { auditList: rows })
     })) as any;
     if (res.code === 200) {
       const batchOrderNo = res.data?.batchOrderNo;
+      if (signedMode.value) {
+        signedBatchNo.value = batchOrderNo;
+        wizardStep.value = 4;
+        await refreshSigningProgress();
+        ElMessage.success(`待签批次 ${batchOrderNo} 创建成功，尚未扣款`);
+        emit('success', res.data);
+        return;
+      }
       visible.value = false;
       emit('success', res.data);
       ElMessageBox.alert(`批量投保出单成功！批次单号：${batchOrderNo}`, '出单成功', {
@@ -693,6 +778,38 @@ const submitBatchPay = async () => {
     console.error(err);
   } finally {
     loadingInstance.close();
+    submittingBatch.value = false;
+  }
+};
+
+const refreshSigningProgress = async () => {
+  if (!signedBatchNo.value) return;
+  progressLoading.value = true;
+  try {
+    const res = (await getSignedBatchProgress(signedBatchNo.value)) as any;
+    signingProgress.value = res.data;
+  } finally {
+    progressLoading.value = false;
+  }
+};
+
+const createSigningLink = async (inviteId: string) => {
+  const res = (await issueSignedBatchLink(signedBatchNo.value, inviteId)) as any;
+  const url = res.data?.url;
+  if (!url) return;
+  signingLinkDialog.url = url;
+  signingLinkDialog.visible = true;
+  await refreshSigningProgress();
+};
+
+const payReadyBatch = async () => {
+  await ElMessageBox.confirm('确认按数据库汇总金额整批扣款？扣款后将进入现有出单和佣金流程。', '整批扣款确认', { type: 'warning' });
+  submittingBatch.value = true;
+  try {
+    await paySignedBatch(signedBatchNo.value);
+    ElMessage.success('整批扣款成功');
+    await refreshSigningProgress();
+  } finally {
     submittingBatch.value = false;
   }
 };

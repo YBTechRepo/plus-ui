@@ -75,3 +75,31 @@ export function submitBatch(data: any) {
     data: data
   });
 }
+
+export function getSignedBatchProgress(batchOrderNo: string) {
+  return request({
+    url: `/insurance/batch/${batchOrderNo}/signing`,
+    method: 'get'
+  });
+}
+
+export function issueSignedBatchLink(batchOrderNo: string, inviteId: string) {
+  return request({
+    url: `/insurance/batch/${batchOrderNo}/invites/${inviteId}/link`,
+    method: 'post'
+  });
+}
+
+export function issueAllSignedBatchLinks(batchOrderNo: string) {
+  return request({
+    url: `/insurance/batch/${batchOrderNo}/links`,
+    method: 'post'
+  });
+}
+
+export function paySignedBatch(batchOrderNo: string) {
+  return request({
+    url: `/insurance/batch/${batchOrderNo}/pay`,
+    method: 'post'
+  });
+}

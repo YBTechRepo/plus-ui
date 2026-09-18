@@ -164,6 +164,12 @@ export interface InsuranceApplyRecordVO {
    */
   batchOrderNo: string;
 
+  /** 是否需要签字投保单 */
+  applicationFormRequired?: boolean;
+
+  /** 投保单生成状态 */
+  applicationFormStatus?: string;
+
 }
 
 export interface InsuranceApplyRecordForm extends BaseEntity {

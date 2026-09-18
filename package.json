@@ -40,6 +40,7 @@
     "jsencrypt": "3.5.4",
     "nprogress": "0.2.0",
     "pinia": "3.0.3",
+    "qrcode.vue": "^3.6.0",
     "screenfull": "6.0.2",
     "vue": "3.5.22",
     "vue-cropper": "1.1.4",

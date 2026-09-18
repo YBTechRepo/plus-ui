@@ -78,7 +78,7 @@
         </el-table-column>
         <el-table-column label="订单状态" align="center" prop="status" width="120">
           <template #default="scope">
-            <el-tag :type="getApplyStatusTagType(scope.row.status)">{{ getApplyStatusLabel(scope.row.status) }}</el-tag>
+            <el-tag :type="getApplyStatusTagType(scope.row.status)">{{ getOrderStatusLabel(scope.row) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="结算状态" align="center" prop="commissionStatus" width="120">
@@ -91,12 +91,13 @@
             <span>{{ parseTime(scope.row.createTime, '{y}-{m}-{d}') }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" align="center" fixed="right" min-width="300" class-name="small-padding fixed-width">
+        <el-table-column label="操作" align="center" fixed="right" min-width="360" class-name="small-padding fixed-width">
           <template #default="scope">
             <el-button link type="primary" icon="View" @click="openDetailDrawer(scope.row)">详情</el-button>
             <el-button v-if="canPreviewVoucher(scope.row)" link type="primary" icon="Document" @click="handlePreviewVoucher(scope.row)"
               >投保凭证</el-button
             >
+            <el-button v-if="canManageSigning(scope.row)" link type="primary" icon="EditPen" @click="openSigningProgress(scope.row)">签署进度</el-button>
             <el-button v-if="canGoPayment(scope.row)" link type="warning" icon="Wallet" @click="handleGoPayment(scope.row)">去支付</el-button>
             <el-button
               v-if="hasApprovePermission"
@@ -448,6 +449,69 @@
         <el-button @click="voucherDialog.visible = false">关 闭</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="signingDialog.visible"
+      :title="`批量签署进度 - ${signingDialog.batchOrderNo}`"
+      width="1100px"
+      append-to-body
+      destroy-on-close
+    >
+      <div v-loading="signingDialog.loading">
+        <el-alert
+          title="可在此重新生成客户签署链接和二维码。一键复制会重新生成全部待签链接，之前的链接将失效。"
+          type="info"
+          :closable="false"
+          show-icon
+          class="mb-4"
+        />
+        <div class="signing-actions mb-4">
+          <el-button
+            type="primary"
+            icon="CopyDocument"
+            :loading="signingDialog.copyingLinks"
+            :disabled="!hasPendingSigningInvite"
+            @click="copyAllSigningLinks"
+          >一键复制所有链接</el-button>
+          <span>复制内容包含子单号、签署人和对应链接，可直接粘贴转发。</span>
+        </div>
+        <el-descriptions :column="3" border class="mb-4">
+          <el-descriptions-item label="总人数">{{ signingDialog.progress?.totalCount || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="已完成">{{ signingDialog.progress?.readyCount || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="整批扣款金额">¥{{ signingDialog.progress?.totalAmount || 0 }}</el-descriptions-item>
+        </el-descriptions>
+        <el-table :data="signingDialog.progress?.rows || []" border max-height="520">
+          <el-table-column prop="customerName" label="被保险人" width="130" />
+          <el-table-column prop="customerMobile" label="手机号" width="140" />
+          <el-table-column prop="applicationFormStatus" label="投保单状态" width="130" />
+          <el-table-column label="签署任务" min-width="430">
+            <template #default="scope">
+              <div v-for="invite in scope.row.invites || []" :key="invite.inviteId" class="signing-invite-row">
+                <span>{{ invite.signerName }}（{{ getSignerRoleLabel(invite.signerRole) }}）</span>
+                <el-tag :type="invite.status === 'SIGNED' ? 'success' : 'warning'" size="small">{{ invite.status === 'SIGNED' ? '已签署' : '待签署' }}</el-tag>
+                <el-button
+                  link
+                  type="primary"
+                  :disabled="invite.status === 'SIGNED'"
+                  @click="createSigningLink(invite.inviteId)"
+                >生成链接/二维码</el-button>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+      <template #footer>
+        <el-button @click="signingDialog.visible = false">关 闭</el-button>
+        <el-button :loading="signingDialog.loading" @click="refreshSigningProgress">刷新进度</el-button>
+        <el-button
+          type="primary"
+          :loading="signingDialog.paying"
+          :disabled="!signingDialog.progress?.allReady || Number(signingDialog.progress?.status) === 0"
+          @click="payReadySignedBatch"
+        >全部签署完成，整批扣款</el-button>
+      </template>
+    </el-dialog>
+    <SigningLinkDialog v-model="signingLinkDialog.visible" :url="signingLinkDialog.url" />
   </div>
 </template>
 
@@ -462,11 +526,13 @@ import {
 } from '@/api/insurance/InsuranceApplyRecord';
 import { InsuranceApplyRecordVO, InsuranceApplyRecordQuery, InsuranceApplyRecordForm } from '@/api/insurance/InsuranceApplyRecord/types';
 import { getProductFull } from '@/api/insurance/InsuranceProductConfig';
+import { getSignedBatchProgress, issueAllSignedBatchLinks, issueSignedBatchLink, paySignedBatch } from '@/api/insurance/batchInsurance';
 import type { InsuranceDynamicField } from '@/api/insurance/dynamicForm/types';
 import { useUserStore } from '@/store/modules/user';
 import request from '@/utils/request';
 import { blobValidate, parseTime } from '@/utils/ruoyi';
 import FileSaver from 'file-saver';
+import SigningLinkDialog from '@/views/insurance/batchInsurance/components/SigningLinkDialog.vue';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const router = useRouter();
@@ -505,6 +571,15 @@ const voucherDialog = reactive({
   batchParentInfo: {} as any,
   productData: {} as any
 });
+const signingDialog = reactive({
+  visible: false,
+  loading: false,
+  copyingLinks: false,
+  paying: false,
+  batchOrderNo: '',
+  progress: null as any
+});
+const signingLinkDialog = reactive({ visible: false, url: '' });
 
 const data = reactive<PageData<InsuranceApplyRecordForm, InsuranceApplyRecordQuery>>({
   form: {},
@@ -553,9 +628,13 @@ const handleSelectionChange = (selection: InsuranceApplyRecordVO[]) => {
   // 保持 RUOYI 默认提供的选择逻辑，如果后续需要导出勾选项会用到
 };
 
+const isSignedBatch = (row: InsuranceApplyRecordVO) => Number(row.isBatch) === 1 && row.applicationFormRequired === true;
+
+const canManageSigning = (row: InsuranceApplyRecordVO) => isSignedBatch(row) && Number(row.status) === 3;
+
 const canGoPayment = (row: InsuranceApplyRecordVO) => {
   const status = Number(row.status);
-  return Number(row.insureMode) === 1 && Number(row.paymentMode) === 1 && (status === 1 || status === 3);
+  return !isSignedBatch(row) && Number(row.insureMode) === 1 && Number(row.paymentMode) === 1 && (status === 1 || status === 3);
 };
 
 const canCancelOrder = (row: InsuranceApplyRecordVO) => {
@@ -700,6 +779,103 @@ const displayExtraValue = (item: any) => {
 
 const handleGoPayment = (row: InsuranceApplyRecordVO) => {
   router.push({ path: '/insurance/tenant-product/payment', query: { orderNo: row.orderNo } });
+};
+
+const getOrderStatusLabel = (row: InsuranceApplyRecordVO) => {
+  return canManageSigning(row) ? '待签署/待扣款' : getApplyStatusLabel(row.status);
+};
+
+const getSignerRoleLabel = (role: string) => ({
+  GUARDIAN: '投保人/法定监护人',
+  APPLICANT_INSURED: '投保人/被保险人',
+  APPLICANT: '投保人',
+  INSURED: '被保险人'
+}[role] || role || '--');
+
+const hasPendingSigningInvite = computed(() => (signingDialog.progress?.rows || []).some(
+  (row: any) => (row.invites || []).some((invite: any) => invite.status !== 'SIGNED')
+));
+
+const refreshSigningProgress = async () => {
+  if (!signingDialog.batchOrderNo) return;
+  signingDialog.loading = true;
+  try {
+    const res = (await getSignedBatchProgress(signingDialog.batchOrderNo)) as any;
+    signingDialog.progress = res.data;
+  } finally {
+    signingDialog.loading = false;
+  }
+};
+
+const openSigningProgress = async (row: InsuranceApplyRecordVO) => {
+  signingDialog.batchOrderNo = row.orderNo;
+  signingDialog.progress = null;
+  signingDialog.visible = true;
+  await refreshSigningProgress();
+};
+
+const createSigningLink = async (inviteId: string) => {
+  const res = (await issueSignedBatchLink(signingDialog.batchOrderNo, inviteId)) as any;
+  const url = res.data?.url;
+  if (!url) return;
+  signingLinkDialog.url = url;
+  signingLinkDialog.visible = true;
+  await refreshSigningProgress();
+};
+
+const copyText = async (text: string) => {
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // 系统剪贴板权限被拒绝时，继续尝试兼容方案。
+    }
+  }
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  const copied = document.execCommand('copy');
+  textarea.remove();
+  if (!copied) throw new Error('复制失败');
+};
+
+const copyAllSigningLinks = async () => {
+  signingDialog.copyingLinks = true;
+  try {
+    const res = (await issueAllSignedBatchLinks(signingDialog.batchOrderNo)) as any;
+    const links = res.data?.links || [];
+    const text = links.map((item: any, index: number) => [
+      `${index + 1}. ${item.orderNo} | ${item.customerName || '--'} | ${item.signerName || '--'}（${getSignerRoleLabel(item.signerRole)}）`,
+      item.url
+    ].join('\n')).join('\n\n');
+    if (!text) return;
+    await copyText(text);
+    ElMessage.success(`已复制 ${links.length} 条待签署链接`);
+    await refreshSigningProgress();
+  } catch (error) {
+    if (error instanceof Error && error.message === '复制失败') {
+      ElMessage.warning('自动复制失败，请检查浏览器剪贴板权限');
+    }
+  } finally {
+    signingDialog.copyingLinks = false;
+  }
+};
+
+const payReadySignedBatch = async () => {
+  await ElMessageBox.confirm('确认按数据库汇总金额整批扣款？', '整批扣款确认', { type: 'warning' });
+  signingDialog.paying = true;
+  try {
+    await paySignedBatch(signingDialog.batchOrderNo);
+    ElMessage.success('整批扣款成功');
+    await Promise.all([refreshSigningProgress(), getList()]);
+  } finally {
+    signingDialog.paying = false;
+  }
 };
 
 const handlePreviewVoucher = async (row: InsuranceApplyRecordVO) => {
@@ -974,6 +1150,21 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+.signing-invite-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+}
+
+.signing-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
 :deep(.operation-more-dropdown) {
   display: inline-flex;
   align-items: center;
